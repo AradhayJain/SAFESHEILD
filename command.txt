@@ -1,0 +1,3 @@
+"C:\Users\vedan\AppData\Local\Android\Sdk\emulator\emulator.exe" -avd Medium_Phone_API_36.0
+
+npx react-native run-android
