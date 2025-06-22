@@ -90,20 +90,22 @@ export default function MainScreen() {
           <Text style={styles.profileBtnText}>Go to Profile</Text>
         </TouchableOpacity> */}
       </ScrollView>
+
+      {/* Bottom Navigation Bar */}
       <View style={styles.navBar}>
         <TouchableOpacity style={styles.navItem}>
           <MaterialCommunityIcons name="home-outline" size={24} color="#2CC7A6" />
           <Text style={styles.navLabelActive}>Home</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/activity' as any)}>
           <MaterialCommunityIcons name="history" size={24} color="#b0b0b0" />
           <Text style={styles.navLabel}>Activity</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/cards' as any)}>
           <MaterialCommunityIcons name="credit-card-outline" size={24} color="#b0b0b0" />
           <Text style={styles.navLabel}>Cards</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/settings' as any)}>
           <MaterialCommunityIcons name="cog-outline" size={24} color="#b0b0b0" />
           <Text style={styles.navLabel}>Settings</Text>
         </TouchableOpacity>
