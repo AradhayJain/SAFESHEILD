@@ -1,0 +1,70 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+export default function LoginScreen() {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [show, setShow] = useState(false);
+  const router = useRouter();
+
+  const handleLogin = () => {
+    // Add your authentication logic here if needed
+    router.replace('/main'); 
+  };
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.center}>
+        <View style={styles.iconBox}>
+          <MaterialCommunityIcons name="shield-outline" size={40} color="#2CC7A6" />
+        </View>
+        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.subtitle}>SafeShield is learning your behavior</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Username"
+          value={username}
+          onChangeText={setUsername}
+          autoCapitalize="none"
+        />
+        <View style={styles.passwordContainer}>
+          <TextInput
+            style={styles.inputPassword}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!show}
+          />
+          <TouchableOpacity onPress={() => setShow(!show)} style={styles.eyeIcon}>
+            <MaterialCommunityIcons name={show ? "eye-off-outline" : "eye-outline"} size={22} color="#b0b0b0" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.button} onPress={handleLogin}>
+          <Text style={styles.buttonText}>Sign In</Text>
+        </TouchableOpacity>
+        <View style={styles.infoRow}>
+          <MaterialCommunityIcons name="lock-outline" size={16} color="#b0b0b0" />
+          <Text style={styles.info}> SafeShield is invisibly authenticating your behavior</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f7fafd', justifyContent: 'center' },
+  center: { alignItems: 'center', marginHorizontal: 32 },
+  iconBox: { backgroundColor: '#e5f1ff', borderRadius: 16, padding: 16, marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 6, color: '#244A85' },
+  subtitle: { fontSize: 15, color: '#244A85', marginBottom: 24 },
+  input: { width: 280, backgroundColor: '#fff', borderRadius: 8, padding: 14, marginBottom: 12, fontSize: 16, borderWidth: 1, borderColor: '#e0e0e0' },
+  passwordContainer: { flexDirection: 'row', alignItems: 'center', width: 280, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e0e0e0', marginBottom: 12 },
+  inputPassword: { flex: 1, padding: 14, fontSize: 16 },
+  eyeIcon: { paddingHorizontal: 8 },
+  button: { backgroundColor: '#2CC7A6', borderRadius: 8, padding: 14, alignItems: 'center', width: 280, marginTop: 12 },
+  buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
+  info: { color: '#b0b0b0', fontSize: 13, textAlign: 'center' },
+});
