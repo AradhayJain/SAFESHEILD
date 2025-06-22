@@ -44,6 +44,12 @@ export default function LoginScreen() {
         <TouchableOpacity style={styles.button} onPress={handleLogin}>
           <Text style={styles.buttonText}>Sign In</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.firstTimeBtn}
+          onPress={() => router.replace('/register' as any)}
+        >
+          <Text style={styles.firstTimeBtnText}>First time user? Register</Text>
+        </TouchableOpacity>
         <View style={styles.infoRow}>
           <MaterialCommunityIcons name="lock-outline" size={16} color="#b0b0b0" />
           <Text style={styles.info}> SafeShield is invisibly authenticating your behavior</Text>
@@ -65,6 +71,21 @@ const styles = StyleSheet.create({
   eyeIcon: { paddingHorizontal: 8 },
   button: { backgroundColor: '#2CC7A6', borderRadius: 8, padding: 14, alignItems: 'center', width: 280, marginTop: 12 },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  firstTimeBtn: {
+    marginTop: 10,
+    alignItems: 'center',
+    width: 280,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2CC7A6',
+    backgroundColor: '#e5f9f5',
+  },
+  firstTimeBtnText: {
+    color: '#244A85',
+    fontSize: 16,
+    fontWeight: '500',
+  },
   infoRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18 },
   info: { color: '#b0b0b0', fontSize: 13, textAlign: 'center' },
 });
