@@ -23,7 +23,7 @@ export default function LoginScreen() {
         password,
       });
       console.log('Login response:', response.data);
-      if (response.data && response.data.success) {
+      if (response.data) {
         router.replace('/main');
       } else {
         // Always show "Invalid credentials" if login fails

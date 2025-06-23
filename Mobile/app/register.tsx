@@ -26,7 +26,8 @@ export default function RegisterScreen() {
         password,
       });
       console.log('Register response:', response.data);
-      if (response.data && response.data.success) {
+      console.log('response.data.success:', response.data.success);
+      if (response.data) {
         Alert.alert('Success', 'Registration complete! Please log in.');
         router.replace('/login');
       } else {
@@ -35,7 +36,7 @@ export default function RegisterScreen() {
       }
     } catch (error: any) {
       console.log('Register error:', error);
-      Alert.alert('Error!', error.response?.data || 'Something went wrong');
+      Alert.alert('Error!', error.response?.data?.message || 'Something went wrong');
     }
   };
 
