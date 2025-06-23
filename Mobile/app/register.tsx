@@ -2,17 +2,41 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import axios from 'axios';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('');
-  const [accountNumber, setAccountNumber] = useState('');
+  const [AccountNumber, setAccountNumber] = useState('');
+  const [PhoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleRegister = () => {
-    // Add registration logic here
-    Alert.alert('Success', 'Registration complete! Please log in.');
-    router.replace('/login');
+  const handleRegister = async () => {
+    if (!username || !AccountNumber || !PhoneNumber || !password) {
+      Alert.alert('Error', 'Please fill all fields.');
+      return;
+    }
+    try {
+      console.log({ username, AccountNumber, PhoneNumber, password });
+
+      const response = await axios.post('https://back-s4p9.onrender.com/api/users/register', {
+        username,
+        AccountNumber,
+        PhoneNumber,
+        password,
+      });
+      console.log('Register response:', response.data);
+      if (response.data && response.data.success) {
+        Alert.alert('Success', 'Registration complete! Please log in.');
+        router.replace('/login');
+      } else {
+        console.log('Registration failed:', response.data);
+        Alert.alert('Registration Failed', response.data?.message || 'Please try again.');
+      }
+    } catch (error: any) {
+      console.log('Register error:', error);
+      Alert.alert('Error!', error.response?.data || 'Something went wrong');
+    }
   };
 
   return (
@@ -32,10 +56,18 @@ export default function RegisterScreen() {
         <TextInput
           style={styles.input}
           placeholder="Account Number"
-          value={accountNumber}
+          value={AccountNumber}
           onChangeText={setAccountNumber}
           keyboardType="number-pad"
           maxLength={18}
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Phone Number"
+          value={PhoneNumber}
+          onChangeText={setPhoneNumber}
+          keyboardType="phone-pad"
+          maxLength={10}
         />
         <TextInput
           style={styles.input}

@@ -1,17 +1,45 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import axios from 'axios';
 
 export default function LoginScreen() {
-  const [username, setUsername] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = () => {
-    // Add your authentication logic here if needed
-    router.replace('/main'); 
+  const handleLogin = async () => {
+    if (!accountNumber || !password) {
+      Alert.alert('Error', 'Please enter both account number and password.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await axios.post('https://back-s4p9.onrender.com/api/users/login', {
+        AccountNumber: accountNumber,
+        password,
+      });
+      console.log('Login response:', response.data);
+      if (response.data && response.data.success) {
+        router.replace('/main');
+      } else {
+        // Always show "Invalid credentials" if login fails
+        Alert.alert('Login Failed', 'Invalid credentials');
+      }
+    } catch (error: any) {
+      console.log('Login error:', error);
+      // Always show "Invalid credentials" for 401 errors, else show generic error
+      if (error.response?.status === 401) {
+        Alert.alert('Login Failed', 'Invalid credentials');
+      } else {
+        Alert.alert('Error', error.response?.data?.message || 'Something went wrong');
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,9 +52,10 @@ export default function LoginScreen() {
         <Text style={styles.subtitle}>SafeShield is learning your behavior</Text>
         <TextInput
           style={styles.input}
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
+          placeholder="Account Number"
+          value={accountNumber}
+          onChangeText={setAccountNumber}
+          keyboardType="number-pad"
           autoCapitalize="none"
         />
         <View style={styles.passwordContainer}>
@@ -41,8 +70,8 @@ export default function LoginScreen() {
             <MaterialCommunityIcons name={show ? "eye-off-outline" : "eye-outline"} size={22} color="#b0b0b0" />
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.button} onPress={handleLogin}>
-          <Text style={styles.buttonText}>Sign In</Text>
+        <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+          <Text style={styles.buttonText}>{loading ? 'Signing In...' : 'Sign In'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.firstTimeBtn}
