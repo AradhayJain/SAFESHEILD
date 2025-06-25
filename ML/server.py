@@ -18,7 +18,7 @@ def train_model():
 
         model_path = get_model(user_id, features)
 
-        return jsonify({"model_path": model_path}), 200
+        return jsonify({"user_id":user_id,"model_path": model_path}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
