@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'reac
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
+import { useContext } from 'react';
+import { useUser } from './context/context';
 
 export default function LoginScreen() {
   const [accountNumber, setAccountNumber] = useState('');
@@ -10,6 +12,7 @@ export default function LoginScreen() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { user } = useUser(); // Assuming UserContext is defined in context.tsx
 
   const handleLogin = async () => {
     if (!accountNumber || !password) {

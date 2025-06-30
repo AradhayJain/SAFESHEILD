@@ -32,15 +32,24 @@ export default function MainScreen() {
         </View>
 
         <View style={styles.row}>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/send')}
+          >
             <MaterialIcons name="arrow-upward" size={20} color="#2CC7A6" />
             <Text style={styles.actionText}>Send</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/receive')}
+          >
             <MaterialIcons name="arrow-downward" size={20} color="#2CC7A6" />
             <Text style={styles.actionText}>Receive</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/top_up' as any)}
+          >
             <MaterialIcons name="add" size={20} color="#2CC7A6" />
             <Text style={styles.actionText}>Top Up</Text>
           </TouchableOpacity>
