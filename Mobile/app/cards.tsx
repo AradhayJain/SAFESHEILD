@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function CardsScreen() {
   const router = useRouter();
@@ -12,9 +13,35 @@ export default function CardsScreen() {
   const [pin, setPin] = useState('');
   const [cvv, setCvv] = useState('');
   const [expiry, setExpiry] = useState('');
+  const [cards, setCards] = useState<any[]>([]);
+
+  // Load cards from AsyncStorage on mount
+  useEffect(() => {
+    (async () => {
+      const stored = await AsyncStorage.getItem('cards');
+      if (stored) setCards(JSON.parse(stored));
+    })();
+  }, []);
+
+  // Save cards to AsyncStorage whenever cards change
+  useEffect(() => {
+    AsyncStorage.setItem('cards', JSON.stringify(cards));
+  }, [cards]);
 
   const handleSubmit = () => {
-    // You can add validation here if needed
+    if (!accountNumber || !cardType || !cardNo) {
+      Alert.alert('Error', 'Please fill all required fields.');
+      return;
+    }
+    setCards([
+      ...cards,
+      {
+        accountNumber,
+        cardType,
+        cardNo,
+        expiry,
+      },
+    ]);
     Alert.alert('Success', 'Card has been added successfully!');
     setAccountNumber('');
     setCardType('');
@@ -24,16 +51,47 @@ export default function CardsScreen() {
     setExpiry('');
   };
 
+  const handleRemoveCard = (idxToRemove: number) => {
+    const updatedCards = cards.filter((_, idx) => idx !== idxToRemove);
+    setCards(updatedCards);
+  };
+
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7fafd' }}>
+    <ScrollView contentContainerStyle={{ flexGrow: 1, alignItems: 'center', backgroundColor: '#f7fafd', paddingTop: 80 }}>
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
         <Feather name="arrow-left" size={24} color="#244A85" />
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
-      <MaterialCommunityIcons name="credit-card-outline" size={60} color="#2CC7A6" style={{ marginBottom: 16 }} />
-      <Text style={styles.text}>Cards Page</Text>
-      <Text style={styles.subtext}>Manage your cards here.</Text>
 
+      {/* Card List */}
+      <View style={{ width: '85%', marginBottom: 24 }}>
+        {cards.length === 0 ? (
+          <TouchableOpacity style={styles.addBankBox}>
+            <MaterialCommunityIcons name="bank" size={32} color="#2CC7A6" />
+            <Text style={styles.addBankText}>Add card</Text>
+          </TouchableOpacity>
+        ) : (
+          cards.map((card, idx) => (
+            <View key={idx} style={styles.cardBox}>
+              <MaterialCommunityIcons name="credit-card-outline" size={40} color="#2CC7A6" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#244A85' }}>
+                  {card.cardType === 'Credit' ? 'Credit Card' : 'Debit Card'} {card.cardNo.slice(-4)}
+                </Text>
+                <Text style={{ color: '#888', fontSize: 14 }}>
+                  {card.accountNumber ? `A/C: ****${card.accountNumber.slice(-4)}` : ''}
+                </Text>
+                <Text style={{ color: '#888', fontSize: 13 }}>
+                  Expiry: {card.expiry}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => handleRemoveCard(idx)} style={styles.removeBtn}>
+                <Feather name="trash-2" size={22} color="#E53935" />
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </View>
       <Text style={styles.heading}>Add Card</Text>
       <View style={styles.inputBox}>
         <Text style={styles.label}>Account Number</Text>
@@ -159,5 +217,39 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  cardBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  addBankBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#2CC7A6',
+    borderRadius: 10,
+    padding: 16,
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  addBankText: {
+    color: '#244A85',
+    fontSize: 16,
+    marginLeft: 10,
+  },
+  removeBtn: {
+    marginLeft: 10,
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#fdecea',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

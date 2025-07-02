@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
+import { GestureHandlerRootView, PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -18,6 +19,11 @@ export default function RegisterScreen() {
 
   const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
   const [swipeAngles, setSwipeAngles] = useState<number[]>([]);
+
+  // Arrays to record stats after each field
+  const [typingStats, setTypingStats] = useState<{mean: number, std: number}[]>([]);
+  const [swipeSpeedStats, setSwipeSpeedStats] = useState<{mean: number, std: number}[]>([]);
+  const [swipeAngleStats, setSwipeAngleStats] = useState<{mean: number, std: number}[]>([]);
 
   const scrollRef = useRef<ScrollView>(null);
 
@@ -36,6 +42,17 @@ export default function RegisterScreen() {
   const std = (arr: number[]) => {
     const m = mean(arr);
     return arr.length ? Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length) : 0;
+  };
+
+  // Call this after each field is completed (onBlur)
+  const recordStats = () => {
+    setTypingStats(prev => [...prev, { mean: mean(typingTimes), std: std(typingTimes) }]);
+    setSwipeSpeedStats(prev => [...prev, { mean: mean(swipeSpeeds), std: std(swipeSpeeds) }]);
+    setSwipeAngleStats(prev => [...prev, { mean: mean(swipeAngles), std: std(swipeAngles) }]);
+    setTypingTimes([]);
+    setSwipeSpeeds([]);
+    setSwipeAngles([]);
+    setLastTypeTime(null);
   };
 
   // Password validation function
@@ -63,15 +80,12 @@ export default function RegisterScreen() {
       return;
     }
     try {
-      console.log({ username, AccountNumber, PhoneNumber, password });
-
       const response = await axios.post('https://back-s4p9.onrender.com/api/users/register', {
         username,
         AccountNumber,
         PhoneNumber,
         password,
       });
-      console.log('Register response:', response.data);
       if (response.data) {
         Alert.alert(
           'Success',
@@ -79,17 +93,15 @@ export default function RegisterScreen() {
           [
             {
               text: 'OK',
-              onPress: () => router.replace('/track_behaviour'),
+              onPress: () => router.replace('/track_behaviour' as any),
             },
           ]
         );
         return;
       } else {
-        console.log('Registration failed:', response.data);
         Alert.alert('Registration Failed', response.data?.message || 'Please try again.');
       }
     } catch (error: any) {
-      console.log('Register error:', error);
       Alert.alert('Error!', error.response?.data?.message || 'Something went wrong');
     }
   };
@@ -104,109 +116,165 @@ export default function RegisterScreen() {
   // refs for each input
   const confirmPasswordRef = useRef<TextInput>(null);
 
+  // Gesture tracking state
+  const gestureStart = useRef<{x: number, y: number, t: number} | null>(null);
+
+  // PanGestureHandler event
+  const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
+    // No-op: we only care about start and end
+  };
+
+  const onHandlerStateChange = (event: PanGestureHandlerGestureEvent) => {
+    const { nativeEvent } = event;
+    if (nativeEvent.state === 2) { // BEGAN
+      gestureStart.current = { x: nativeEvent.x, y: nativeEvent.y, t: Date.now() };
+    }
+    if (nativeEvent.state === 5 && gestureStart.current) { // END
+      const dx = nativeEvent.x - gestureStart.current.x;
+      const dy = nativeEvent.y - gestureStart.current.y;
+      const dt = Date.now() - gestureStart.current.t;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (dt > 0 && distance > 10) {
+        const speed = distance / dt;
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        setSwipeSpeeds(prev => [...prev, speed]);
+        setSwipeAngles(prev => [...prev, angle]);
+      }
+      gestureStart.current = null;
+    }
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
-    >
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
-        <View style={styles.container}>
-          <View style={styles.center}>
-            <View style={styles.iconBox}>
-              <MaterialCommunityIcons name="account-plus-outline" size={40} color="#2CC7A6" />
-            </View>
-            <Text style={styles.title}>Register</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Username"
-              value={username}
-              onChangeText={handleTyping(setUsername)}
-              autoCapitalize="none"
-              onFocus={e => scrollToInput(e.nativeEvent.target)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Account Number"
-              value={AccountNumber}
-              onChangeText={handleTyping(setAccountNumber)}
-              keyboardType="number-pad"
-              maxLength={18}
-              onFocus={e => scrollToInput(e.nativeEvent.target)}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Phone Number"
-              value={PhoneNumber}
-              onChangeText={handleTyping(setPhoneNumber)}
-              keyboardType="phone-pad"
-              maxLength={10}
-              onFocus={e => scrollToInput(e.nativeEvent.target)}
-            />
-            <View style={{ width: 280, flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
-              <TextInput
-                style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                placeholder="Password"
-                value={password}
-                onChangeText={handleTyping(setPassword)}
-                secureTextEntry={!showPassword}
-                onFocus={e => scrollToInput(e.nativeEvent.target)}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10 }}>
-                <MaterialCommunityIcons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={24}
-                  color="#888"
+        <PanGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+        >
+          <ScrollView
+            ref={scrollRef}
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.container}>
+              <View style={styles.center}>
+                <View style={styles.iconBox}>
+                  <MaterialCommunityIcons name="account-plus-outline" size={40} color="#2CC7A6" />
+                </View>
+                <Text style={styles.title}>Register</Text>
+                {/* Username */}
+                <TextInput
+                  style={styles.input}
+                  placeholder="Username"
+                  value={username}
+                  onChangeText={handleTyping(setUsername)}
+                  autoCapitalize="none"
+                  onFocus={e => scrollToInput(e.nativeEvent.target)}
+                  onBlur={recordStats}
                 />
-              </TouchableOpacity>
+                {/* Account Number */}
+                <TextInput
+                  style={styles.input}
+                  placeholder="Account Number"
+                  value={AccountNumber}
+                  onChangeText={handleTyping(setAccountNumber)}
+                  keyboardType="number-pad"
+                  maxLength={18}
+                  onFocus={e => scrollToInput(e.nativeEvent.target)}
+                  onBlur={recordStats}
+                />
+                {/* Phone Number */}
+                <TextInput
+                  style={styles.input}
+                  placeholder="Phone Number"
+                  value={PhoneNumber}
+                  onChangeText={handleTyping(setPhoneNumber)}
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  onFocus={e => scrollToInput(e.nativeEvent.target)}
+                  onBlur={recordStats}
+                />
+                {/* Password */}
+                <View style={{ width: 280, flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={handleTyping(setPassword)}
+                    secureTextEntry={!showPassword}
+                    onFocus={e => scrollToInput(e.nativeEvent.target)}
+                    onBlur={recordStats}
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 10 }}>
+                    <MaterialCommunityIcons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={24}
+                      color="#888"
+                    />
+                  </TouchableOpacity>
+                </View>
+                <View style={{ width: 280, marginBottom: 14 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: isPasswordValid(password) ? '#2CC7A6' : '#b0b0b0',
+                      marginBottom: 2,
+                    }}
+                  >
+                    Password must be at least 6 characters, include 1 special character, 1 uppercase, 1 lowercase, and 1 number.
+                  </Text>
+                </View>
+                {/* Confirm Password */}
+                <TextInput
+                  ref={confirmPasswordRef}
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  value={confirmPassword}
+                  onChangeText={handleTyping(setConfirmPassword)}
+                  secureTextEntry={!showPassword}
+                  onFocus={e => scrollToInput(e.nativeEvent.target)}
+                  onBlur={recordStats}
+                />
+
+                {/* Show stats for debugging */}
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  Typing speed (ms): mean={mean(typingTimes).toFixed(2)}, std={std(typingTimes).toFixed(2)}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  Swipe speed (px/ms): mean={mean(swipeSpeeds).toFixed(4)}, std={std(swipeSpeeds).toFixed(4)}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  Swipe angle (deg): mean={mean(swipeAngles).toFixed(2)}, std={std(swipeAngles).toFixed(2)}
+                </Text>
+                {/* Show arrays for debugging */}
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  Typing stats array: {JSON.stringify(typingStats)}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  Swipe speed stats array: {JSON.stringify(swipeSpeedStats)}
+                </Text>
+                <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+                  Swipe angle stats array: {JSON.stringify(swipeAngleStats)}
+                </Text>
+                <TouchableOpacity style={styles.swipeButton} onPress={handleRegister}>
+                  <Text style={styles.buttonText}>Register</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.loginBtn}
+                  onPress={() => router.replace('/login')}
+                >
+                  <Text style={styles.loginBtnText}>Already have an account? Login</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={{ width: 280, marginBottom: 14 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: isPasswordValid(password) ? '#2CC7A6' : '#b0b0b0',
-                  marginBottom: 2,
-                }}
-              >
-                Password must be at least 6 characters, include 1 special character, 1 uppercase, 1 lowercase, and 1 number.
-              </Text>
-            </View>
-            <TextInput
-              ref={confirmPasswordRef}
-              style={styles.input}
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChangeText={handleTyping(setConfirmPassword)}
-              secureTextEntry={!showPassword}
-              onFocus={e => scrollToInput(e.nativeEvent.target)}
-            />
-            {/* Show stats for debugging */}
-            <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-              Typing speed (ms): mean={mean(typingTimes).toFixed(2)}, std={std(typingTimes).toFixed(2)}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-              Swipe speed (px/ms): mean={mean(swipeSpeeds).toFixed(4)}, std={std(swipeSpeeds).toFixed(4)}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-              Swipe angle (deg): mean={mean(swipeAngles).toFixed(2)}, std={std(swipeAngles).toFixed(2)}
-            </Text>
-            <TouchableOpacity style={styles.swipeButton} onPress={handleRegister}>
-              <Text style={styles.buttonText}>Register</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.loginBtn}
-              onPress={() => router.replace('/login')}
-            >
-              <Text style={styles.loginBtnText}>Already have an account? Login</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          </ScrollView>
+        </PanGestureHandler>
+      </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 

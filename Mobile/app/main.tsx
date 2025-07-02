@@ -1,17 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
 
+
 export default function MainScreen() {
   const router = useRouter();
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  useEffect(() => {
+    const loadStoredData = async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem('authToken');
+        const storedUser = await AsyncStorage.getItem('authUser');
+
+        if (storedToken) setToken(storedToken);
+        if (storedUser) setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Error loading from AsyncStorage', error);
+      }
+    };
+
+    loadStoredData();
+  }, []);
 
   return (
     <View style={styles.outer}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.greeting}>Good Morning, John</Text>
+            <Text style={styles.greeting}>Good Morning, {user?.username}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <MaterialCommunityIcons name="shield-check-outline" size={16} color="#2CC7A6" />
               <Text style={styles.status}> SafeShield Active </Text>
@@ -26,21 +45,30 @@ export default function MainScreen() {
 
         <View style={styles.card}>
           <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balance}>$24,853.42</Text>
-          <Text style={styles.account}>Account: ****1234</Text>
+          <Text style={styles.balance}>₹24,853.42</Text> 
+          <Text style={styles.account}>Account: {user?.AccountNumber}</Text>
           <Text style={styles.percentCard}>+2.4%</Text>
         </View>
 
         <View style={styles.row}>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/send' as any)}
+          >
             <MaterialIcons name="arrow-upward" size={20} color="#2CC7A6" />
             <Text style={styles.actionText}>Send</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/receive' as any)}
+          >
             <MaterialIcons name="arrow-downward" size={20} color="#2CC7A6" />
             <Text style={styles.actionText}>Receive</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push('/top_up' as any)}
+          >
             <MaterialIcons name="add" size={20} color="#2CC7A6" />
             <Text style={styles.actionText}>Top Up</Text>
           </TouchableOpacity>
