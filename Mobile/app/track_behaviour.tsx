@@ -14,46 +14,88 @@ export default function TrackBehaviourScreen() {
   const router = useRouter();
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState(Array(questions.length).fill(''));
-  const [typingTimes, setTypingTimes] = useState<number[][]>(Array(questions.length).fill([]).map(() => []));
-  const [lastTypeTime, setLastTypeTime] = useState<number | null>(null);
+  const [swipeCount, setSwipeCount] = useState(Array(questions.length).fill(0));
 
-  // Store all raw swipes for each question
-  const [swipeSpeeds, setSwipeSpeeds] = useState<number[][]>(Array(questions.length).fill([]).map(() => []));
-  const [swipeAngles, setSwipeAngles] = useState<number[][]>(Array(questions.length).fill([]).map(() => []));
-  // Store mean/std for each question after 3 swipes
-  const [swipeStats, setSwipeStats] = useState<{speedMean: number, speedStd: number, angleMean: number, angleStd: number}[]>(
-    Array(questions.length).fill({speedMean: 0, speedStd: 0, angleMean: 0, angleStd: 0})
-  );
+  // --- Gesture/Swipe Data Arrays ---
+  // Store all data in 1D arrays (not per question)
+  const [swipeDistances, setSwipeDistances] = useState<number[]>([]);
+  const [swipeDurations, setSwipeDurations] = useState<number[]>([]);
+  const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
+  const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
+  const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
+
+  // --- Typing Data Arrays ---
+  const [holdTimes, setHoldTimes] = useState<number[]>([]);
+  const [flightTimes, setFlightTimes] = useState<number[][]>(Array(questions.length).fill([]));
+  const [backspaceRates, setBackspaceRates] = useState<number[]>([]);
+  const [typingSpeeds, setTypingSpeeds] = useState<number[]>([]);
+
+  // Typing state for tracking
+  const keyDownTime = useRef<number | null>(null);
+  const lastKeyUpTime = useRef<number | null>(null);
+  const firstKeyDownTime = useRef<number | null>(null);
+  const totalKeys = useRef<number[]>(Array(questions.length).fill(0));
+  const backspaceCount = useRef<number[]>(Array(questions.length).fill(0));
 
   const gestureStart = useRef<{x: number, y: number, t: number} | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Typing speed tracking per question
+  // Typing tracking (simulate keyDown/keyUp for mobile)
   const handleTyping = (text: string) => {
+    // Simulate keyDown
     const now = Date.now();
-    if (lastTypeTime !== null) {
-      setTypingTimes(prev => {
+    if (firstKeyDownTime.current === null) firstKeyDownTime.current = now;
+    if (keyDownTime.current !== null && lastKeyUpTime.current !== null) {
+      // Flight time: time between last key up and this key down
+      setFlightTimes(prev => {
         const updated = [...prev];
-        updated[current] = [...updated[current], now - lastTypeTime];
+        updated[current] = [...(updated[current] || []), now - lastKeyUpTime.current!];
         return updated;
       });
     }
-    setLastTypeTime(now);
+    keyDownTime.current = now;
+
+    // Detect backspace
+    if (
+      answers[current].length > text.length
+    ) {
+      backspaceCount.current[current] = backspaceCount.current[current] + 1;
+    } else {
+      totalKeys.current[current] = totalKeys.current[current] + 1;
+    }
+
     setAnswers(prev => {
       const updated = [...prev];
       updated[current] = text;
       return updated;
     });
+
+    // Simulate keyUp (immediately after keyDown for mobile)
+    const upNow = Date.now();
+    if (keyDownTime.current !== null) {
+      setHoldTimes(prev => [...prev, upNow - keyDownTime.current!]);
+      lastKeyUpTime.current = upNow;
+    }
+
+    // Typing speed: total keys / (lastKeyUp - firstKeyDown) in chars/sec
+    if (firstKeyDownTime.current && lastKeyUpTime.current && totalKeys.current[current] > 0) {
+      setTypingSpeeds(prev => {
+        const updated = [...prev];
+        updated[current] = totalKeys.current[current] / ((lastKeyUpTime.current! - firstKeyDownTime.current!) / 1000);
+        return updated;
+      });
+    }
+
+    // Backspace rate: # of ⌫ presses / total keys
+    if (totalKeys.current[current] > 0) {
+      setBackspaceRates(prev => {
+        const updated = [...prev];
+        updated[current] = backspaceCount.current[current] / totalKeys.current[current];
+        return updated;
+      });
+    }
   };
 
-  // Utility functions
-  const mean = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-  const std = (arr: number[]) => {
-    const m = mean(arr);
-    return arr.length ? Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length) : 0;
-  };
-
-  // PanGestureHandler event
   const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
     // No-op
   };
@@ -64,63 +106,68 @@ export default function TrackBehaviourScreen() {
       gestureStart.current = { x: nativeEvent.x, y: nativeEvent.y, t: Date.now() };
     }
     if (nativeEvent.state === 5 && gestureStart.current) { // END
-      const dx = nativeEvent.x - gestureStart.current.x;
-      const dy = nativeEvent.y - gestureStart.current.y;
-      const dt = Date.now() - gestureStart.current.t;
+      const x1 = gestureStart.current.x;
+      const y1 = gestureStart.current.y;
+      const t1 = gestureStart.current.t;
+      const x2 = nativeEvent.x;
+      const y2 = nativeEvent.y;
+      const t2 = Date.now();
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (dt > 0 && Math.abs(dx) > 50) {
+      const duration = t2 - t1;
+      const speed = duration > 0 ? distance / duration : 0;
+      const direction = Math.atan2(dy, dx);
+      const acceleration = duration > 0 ? speed / duration : 0;
+
+      if (Math.abs(dx) > 50) {
         // Prevent swipe if answer is empty
         if (!answers[current] || answers[current].trim() === '') {
           Alert.alert('Please answer the question before proceeding.');
           gestureStart.current = null;
           return;
         }
-        const speed = distance / dt;
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
 
-        setSwipeSpeeds(prev => {
+        setSwipeCount(prev => {
           const updated = [...prev];
-          updated[current] = [...updated[current], speed];
-          return updated;
-        });
-        setSwipeAngles(prev => {
-          const updated = [...prev];
-          updated[current] = [...updated[current], angle];
+          updated[current] = updated[current] + 1;
           return updated;
         });
 
-        // After updating, check if 3 swipes are done for this question
-        setTimeout(() => {
-          // Use latest values
-          setSwipeSpeeds(prevSpeeds => {
-            setSwipeAngles(prevAngles => {
-              const speeds = prevSpeeds[current] || [];
-              const angles = prevAngles[current] || [];
-              if (speeds.length >= 3 && angles.length >= 3 && (!swipeStats[current] || swipeStats[current].speedMean === 0)) {
-                const stats = {
-                  speedMean: mean(speeds.slice(0, 3)),
-                  speedStd: std(speeds.slice(0, 3)),
-                  angleMean: mean(angles.slice(0, 3)),
-                  angleStd: std(angles.slice(0, 3)),
-                };
-                setSwipeStats(prevStats => {
-                  const updated = [...prevStats];
-                  updated[current] = stats;
-                  return updated;
-                });
-                // Move to next question after 3 swipes
-                if (current < questions.length - 1) {
-                  setCurrent(current + 1);
-                  setLastTypeTime(null);
-                } else {
-                  router.replace('/login');
-                }
-              }
-              return prevAngles;
-            });
-            return prevSpeeds;
-          });
-        }, 0);
+        setSwipeDistances(prev => [...prev, distance]);
+        setSwipeDurations(prev => [...prev, duration]);
+        setSwipeSpeeds(prev => [...prev, speed]);
+        setSwipeDirections(prev => [...prev, direction]);
+        setSwipeAccelerations(prev => [...prev, acceleration]);
+
+        // After 3 swipes, move to next question or finish
+        if (swipeCount[current] + 1 >= 3) {
+          // Reset typing trackers for next question
+          keyDownTime.current = null;
+          lastKeyUpTime.current = null;
+          firstKeyDownTime.current = null;
+          totalKeys.current[current + 1] = 0;
+          backspaceCount.current[current + 1] = 0;
+
+          if (current < questions.length - 1) {
+            setCurrent(current + 1);
+          } else {
+            // Print only the final arrays after all questions are answered
+            setTimeout(() => {
+              console.log('FINAL swipeDistances:', swipeDistances);
+              console.log('FINAL swipeDurations:', swipeDurations);
+              console.log('FINAL swipeSpeeds:', swipeSpeeds);
+              console.log('FINAL swipeDirections:', swipeDirections);
+              console.log('FINAL swipeAccelerations:', swipeAccelerations);
+              console.log('FINAL holdTimes:', holdTimes);
+              console.log('FINAL flightTimes:', flightTimes);
+              console.log('FINAL backspaceRates:', backspaceRates);
+              console.log('FINAL typingSpeeds:', typingSpeeds);
+              router.replace('/login');
+            }, 0);
+          }
+        }
       }
       gestureStart.current = null;
     }
@@ -165,28 +212,9 @@ export default function TrackBehaviourScreen() {
                     }, 300);
                   }}
                 />
-                <Text style={styles.swipeHint}>Swipe 3 times to go to next question</Text>
-                <View style={{ marginTop: 10 }}>
-                  <Text style={styles.stats}>
-                    Typing speed (ms): mean={mean(typingTimes[current]).toFixed(2)}, std={std(typingTimes[current]).toFixed(2)}
-                  </Text>
-                  <Text style={styles.stats}>
-                    Swipe speed (px/ms): {swipeStats[current]?.speedMean?.toFixed(4) ?? '0.0000'} (mean), {swipeStats[current]?.speedStd?.toFixed(4) ?? '0.0000'} (std)
-                  </Text>
-                  <Text style={styles.stats}>
-                    Swipe angle (deg): {swipeStats[current]?.angleMean?.toFixed(2) ?? '0.00'} (mean), {swipeStats[current]?.angleStd?.toFixed(2) ?? '0.00'} (std)
-                  </Text>
-                  {/* Debug: show raw values */}
-                  <Text style={styles.stats}>
-                    Typing times: [{typingTimes[current].join(', ')}]
-                  </Text>
-                  <Text style={styles.stats}>
-                    Swipe speeds: [{swipeSpeeds[current].join(', ')}]
-                  </Text>
-                  <Text style={styles.stats}>
-                    Swipe angles: [{swipeAngles[current].join(', ')}]
-                  </Text>
-                </View>
+                <Text style={styles.swipeHint}>
+                  Swipe 3 times to go to next question ({swipeCount[current]}/3)
+                </Text>
               </View>
               <Text style={styles.progress}>Step {current + 1} of {questions.length}</Text>
             </View>
@@ -206,6 +234,5 @@ const styles = StyleSheet.create({
   question: { fontSize: 17, color: '#244A85', marginBottom: 12, textAlign: 'center', fontWeight: '500' },
   input: { width: '100%', minHeight: 40, backgroundColor: '#f2f2f2', borderRadius: 8, padding: 10, fontSize: 16, marginBottom: 10 },
   swipeHint: { fontSize: 13, color: '#888', marginTop: 6, textAlign: 'center' },
-  stats: { fontSize: 12, color: '#888', marginBottom: 2 },
   progress: { marginTop: 18, fontSize: 13, color: '#244A85', fontWeight: 'bold' },
 });

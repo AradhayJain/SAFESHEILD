@@ -1,20 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
-
+import { BehaviourTracker } from './behaviourTracker';
+import { PanGestureHandler, PanGestureHandlerGestureEvent, GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function MainScreen() {
   const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+
+  // Typing tracking state (for future use, no input field here)
+  const keyDownTime = useRef<number | null>(null);
+  const lastKeyUpTime = useRef<number | null>(null);
+  const firstKeyDownTime = useRef<number | null>(null);
+  const totalKeys = useRef<number>(0);
+  const backspaceCount = useRef<number>(0);
+
+  // Gesture tracking state for the swipe area
+  const gestureStart = useRef<{x: number, y: number, t: number} | null>(null);
+
+  // Ref for ScrollView to use with simultaneousHandlers
+  const scrollRef = useRef(null);
+
   useEffect(() => {
     const loadStoredData = async () => {
       try {
         const storedToken = await AsyncStorage.getItem('authToken');
         const storedUser = await AsyncStorage.getItem('authUser');
-
         if (storedToken) setToken(storedToken);
         if (storedUser) setUser(JSON.parse(storedUser));
       } catch (error) {
@@ -23,122 +37,173 @@ export default function MainScreen() {
     };
 
     loadStoredData();
+
+    // Print tracked behaviour data to console on mount
+    BehaviourTracker.getAll().then(data => {
+      console.log('Tracked Behaviour Data:', data);
+    });
   }, []);
 
+  // --- Gesture tracking for the entire screen ---
+  const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
+    // No-op
+  };
+
+  const onHandlerStateChange = (event: PanGestureHandlerGestureEvent) => {
+    const { nativeEvent } = event;
+    if (nativeEvent.state === 2) { // BEGAN
+      gestureStart.current = { x: nativeEvent.x, y: nativeEvent.y, t: Date.now() };
+    }
+    if (nativeEvent.state === 5 && gestureStart.current) { // END
+      const x1 = gestureStart.current.x;
+      const y1 = gestureStart.current.y;
+      const t1 = gestureStart.current.t;
+      const x2 = nativeEvent.x;
+      const y2 = nativeEvent.y;
+      const t2 = Date.now();
+
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const duration = t2 - t1;
+      const speed = duration > 0 ? distance / duration : 0;
+      const direction = Math.atan2(dy, dx);
+      const acceleration = duration > 0 ? speed / duration : 0;
+
+      // Only record if swipe is significant
+      if (distance > 20 && duration > 0) {
+        BehaviourTracker.addSwipeDistance(distance);
+        BehaviourTracker.addSwipeDuration(duration);
+        BehaviourTracker.addSwipeSpeed(speed);
+        BehaviourTracker.addSwipeDirection(direction);
+        BehaviourTracker.addSwipeAcceleration(acceleration);
+        console.log('Swipe recorded:', { distance, duration, speed, direction, acceleration });
+      }
+
+      gestureStart.current = null;
+    }
+  };
+
   return (
-    <View style={styles.outer}>
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={styles.greeting}>Good Morning, {user?.username}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialCommunityIcons name="shield-check-outline" size={16} color="#2CC7A6" />
-              <Text style={styles.status}> SafeShield Active </Text>
-              <Text style={styles.percent}>5.6%</Text>
-            </View>
-          </View>
-          <View style={styles.headerIcons}>
-            <Feather name="bell" size={22} color="#244A85" style={{ marginRight: 16 }} />
-            <Feather name="user" size={22} color="#244A85" onPress={() => router.push('/profile')} />
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.balanceLabel}>Total Balance</Text>
-          <Text style={styles.balance}>₹24,853.42</Text> 
-          <Text style={styles.account}>Account: {user?.AccountNumber}</Text>
-          <Text style={styles.percentCard}>+2.4%</Text>
-        </View>
-
-        <View style={styles.row}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => router.push('/send' as any)}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <PanGestureHandler
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
+        simultaneousHandlers={scrollRef}
+      >
+        <View style={{ flex: 1 }}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.container}
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            <MaterialIcons name="arrow-upward" size={20} color="#2CC7A6" />
-            <Text style={styles.actionText}>Send</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => router.push('/receive' as any)}
-          >
-            <MaterialIcons name="arrow-downward" size={20} color="#2CC7A6" />
-            <Text style={styles.actionText}>Receive</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => router.push('/top_up' as any)}
-          >
-            <MaterialIcons name="add" size={20} color="#2CC7A6" />
-            <Text style={styles.actionText}>Top Up</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.shieldBox}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="shield-outline" size={18} color="#2CC7A6" />
-            <Text style={styles.shieldStatus}> SafeShield Status </Text>
-            <Text style={styles.active}>• Active</Text>
-          </View>
-          <View style={styles.confidenceRow}>
-            <View style={styles.confidenceCol}>
-              <Text style={styles.confidenceValue}>11%</Text>
-              <Text style={styles.confidenceLabel}>Touch Confidence</Text>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.greeting}>Good Morning, {user?.username}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="shield-check-outline" size={16} color="#2CC7A6" />
+                  <Text style={styles.status}> SafeShield Active </Text>
+                  <Text style={styles.percent}>5.6%</Text>
+                </View>
+              </View>
+              <View style={styles.headerIcons}>
+                <Feather name="bell" size={22} color="#244A85" style={{ marginRight: 16 }} />
+                <Feather name="user" size={22} color="#244A85" onPress={() => router.push('/profile')} />
+              </View>
             </View>
-            <View style={styles.confidenceCol}>
-              <Text style={styles.confidenceValue}>12%</Text>
-              <Text style={styles.confidenceLabel}>Gesture Match</Text>
+
+            <View style={styles.card}>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <Text style={styles.balance}>₹24,853.42</Text>
+              <Text style={styles.account}>Account: {user?.AccountNumber}</Text>
+              <Text style={styles.percentCard}>+2.4%</Text>
             </View>
-          </View>
-        </View>
 
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.activityBox}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="bank-transfer-in" size={22} color="#2CC7A6" />
-            <Text style={styles.activityTitle}> Salary Deposit</Text>
-          </View>
-          <Text style={styles.activityAmount}>+ $3,500.00</Text>
-          <Text style={styles.activityTime}>2 hours ago • Verified</Text>
-        </View>
-        <View style={styles.activityBox}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="coffee" size={22} color="#e74c3c" />
-            <Text style={styles.activityTitle}> Coffee Shop</Text>
-          </View>
-          <Text style={[styles.activityAmount, { color: '#e74c3c' }]}>- $4.50</Text>
-          <Text style={styles.activityTime}>Yesterday • Auto-approved</Text>
-        </View>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => router.push('/send' as any)}
+              >
+                <MaterialIcons name="arrow-upward" size={20} color="#2CC7A6" />
+                <Text style={styles.actionText}>Send</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => router.push('/receive' as any)}
+              >
+                <MaterialIcons name="arrow-downward" size={20} color="#2CC7A6" />
+                <Text style={styles.actionText}>Receive</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionBtn}
+                onPress={() => router.push('/top_up' as any)}
+              >
+                <MaterialIcons name="add" size={20} color="#2CC7A6" />
+                <Text style={styles.actionText}>Top Up</Text>
+              </TouchableOpacity>
+            </View>
 
-        {/* Profile navigation button */}
-        {/* <TouchableOpacity 
-          style={styles.profileBtn} 
-          onPress={() => router.push('/profile')}
-        >
-          <Text style={styles.profileBtnText}>Go to Profile</Text>
-        </TouchableOpacity> */}
-      </ScrollView>
+            <View style={styles.shieldBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="shield-outline" size={18} color="#2CC7A6" />
+                <Text style={styles.shieldStatus}> SafeShield Status </Text>
+                <Text style={styles.active}>• Active</Text>
+              </View>
+              <View style={styles.confidenceRow}>
+                <View style={styles.confidenceCol}>
+                  <Text style={styles.confidenceValue}>11%</Text>
+                  <Text style={styles.confidenceLabel}>Touch Confidence</Text>
+                </View>
+                <View style={styles.confidenceCol}>
+                  <Text style={styles.confidenceValue}>12%</Text>
+                  <Text style={styles.confidenceLabel}>Gesture Match</Text>
+                </View>
+              </View>
+            </View>
 
-      {/* Bottom Navigation Bar */}
-      <View style={styles.navBar}>
-        <TouchableOpacity style={styles.navItem}>
-          <MaterialCommunityIcons name="home-outline" size={24} color="#2CC7A6" />
-          <Text style={styles.navLabelActive}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/activity' as any)}>
-          <MaterialCommunityIcons name="history" size={24} color="#b0b0b0" />
-          <Text style={styles.navLabel}>Activity</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/cards' as any)}>
-          <MaterialCommunityIcons name="credit-card-outline" size={24} color="#b0b0b0" />
-          <Text style={styles.navLabel}>Cards</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push('/settings' as any)}>
-          <MaterialCommunityIcons name="cog-outline" size={24} color="#b0b0b0" />
-          <Text style={styles.navLabel}>Settings</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <View style={styles.activityBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="bank-transfer-in" size={22} color="#2CC7A6" />
+                <Text style={styles.activityTitle}> Salary Deposit</Text>
+              </View>
+              <Text style={styles.activityAmount}>+ $3,500.00</Text>
+              <Text style={styles.activityTime}>2 hours ago • Verified</Text>
+            </View>
+            <View style={styles.activityBox}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="coffee" size={22} color="#e74c3c" />
+                <Text style={styles.activityTitle}> Coffee Shop</Text>
+              </View>
+              <Text style={[styles.activityAmount, { color: '#e74c3c' }]}>- $4.50</Text>
+              <Text style={styles.activityTime}>Yesterday • Auto-approved</Text>
+            </View>
+
+            {/* Bottom Navigation Bar */}
+            <View style={styles.navBar}>
+              <TouchableOpacity style={styles.navItem}>
+                <MaterialCommunityIcons name="home-outline" size={24} color="#2CC7A6" />
+                <Text style={styles.navLabelActive}>Home</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/activity' as any)}>
+                <MaterialCommunityIcons name="history" size={24} color="#b0b0b0" />
+                <Text style={styles.navLabel}>Activity</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/cards' as any)}>
+                <MaterialCommunityIcons name="credit-card-outline" size={24} color="#b0b0b0" />
+                <Text style={styles.navLabel}>Cards</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.navItem} onPress={() => router.push('/settings' as any)}>
+                <MaterialCommunityIcons name="cog-outline" size={24} color="#b0b0b0" />
+                <Text style={styles.navLabel}>Settings</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </PanGestureHandler>
+    </GestureHandlerRootView>
   );
 }
 
