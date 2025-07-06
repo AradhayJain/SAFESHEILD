@@ -1,6 +1,6 @@
 # fastapi_ws.py
 from fastapi import FastAPI, WebSocket
-from ML.util_predict import predict_with_model
+from util_predict import predict_with_model
 import json
 
 app = FastAPI()
@@ -26,7 +26,7 @@ async def predict(websocket: WebSocket):
 
 
 """
-uvicorn ML.web_socket:app --host 0.0.0.0 --port 8000 :-run on terminal
+uvicorn app_web_socket:app --host 0.0.0.0 --port 8000 :-run on terminal
 ws://localhost:8000/predict
 {
     "user_id": "user123",

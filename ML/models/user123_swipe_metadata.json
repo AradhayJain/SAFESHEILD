@@ -1,0 +1,18 @@
+{
+  "user_id": "user123",
+  "training_date": "2025-07-06T12:51:10.725295",
+  "total_samples": 1000,
+  "training_samples": 800,
+  "validation_samples": 200,
+  "train_outlier_rate": 0.1,
+  "val_outlier_rate": 0.105,
+  "contamination": 0.1,
+  "feature_columns": [
+    "speed_mean",
+    "speed_std",
+    "direction_mean",
+    "direction_std",
+    "acceleration_mean",
+    "acceleration_std"
+  ]
+}
