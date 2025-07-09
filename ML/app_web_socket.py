@@ -1,6 +1,6 @@
 # fastapi_ws.py
 from fastapi import FastAPI, WebSocket
-from util_predict import predict_with_model
+from utill_predict import predict_with_model
 import json
 
 app = FastAPI()
