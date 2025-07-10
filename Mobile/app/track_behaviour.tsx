@@ -177,7 +177,7 @@ export default function TrackBehaviourScreen() {
   // Submit handler
   const handleSubmit = async () => {
     try {
-      const { data } = await axios.post('https://back-s4p9.onrender.com/api/data/getData', {
+      const { data } = await axios.post('http://localhost:9001/api/data/getData', {
         swipeDistances,
         swipeDurations,
         swipeSpeeds,

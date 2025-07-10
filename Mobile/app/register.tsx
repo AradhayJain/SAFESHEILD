@@ -41,7 +41,7 @@ export default function RegisterScreen() {
       return;
     }
     try {
-      const response = await axios.post('https://back-s4p9.onrender.com/api/users/register', {
+      const response = await axios.post('http://localhost:9001/api/users/register', {
         username,
         AccountNumber,
         PhoneNumber,
