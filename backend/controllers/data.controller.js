@@ -2,58 +2,67 @@ import WebSocket from 'ws';
 import axios from 'axios';
 
 export const predictWithWebSocket = async (data, userId) => {
-    if (!userId) throw new Error("No user ID provided");
-  
-    const ws = new WebSocket("ws://localhost:8000/predict");
-  
-    const requestData = {
-      user_id: userId,
-      data: {
-        swiping: {
-          swipeDistances: data.swipeDistances,
-          swipeDurations: data.swipeDurations,
-          swipeSpeeds: data.swipeSpeeds,
-          swipeDirections: data.swipeDirections,
-          swipeAccelerations: data.swipeAccelerations
-        },
-        typing: {
-          keyHoldTimes: data.holdTimes,
-          keyFlightTimes: data.flightTimes,
-          backspaceRates: data.backspaceRates,
-          typingSpeeds: data.typingSpeeds
-        }
+  if (!userId) throw new Error("No user ID provided");
+
+  const ws = new WebSocket("ws://localhost:8000/predict");
+
+  const requestData = {
+    user_id: userId,
+    data: {}
+  };
+
+  if (
+    data.swipeDistances || data.swipeDurations || data.swipeSpeeds ||
+    data.swipeDirections || data.swipeAccelerations
+  ) {
+    requestData.data.swiping = {
+      ...(data.swipeDistances && { swipeDistances: data.swipeDistances }),
+      ...(data.swipeDurations && { swipeDurations: data.swipeDurations }),
+      ...(data.swipeSpeeds && { swipeSpeeds: data.swipeSpeeds }),
+      ...(data.swipeDirections && { swipeDirections: data.swipeDirections }),
+      ...(data.swipeAccelerations && { swipeAccelerations: data.swipeAccelerations }),
+    };
+  }
+
+  if (
+    data.holdTimes || data.flightTimes || data.backspaceRates || data.typingSpeeds
+  ) {
+    requestData.data.typing = {
+      ...(data.holdTimes && { keyHoldTimes: data.holdTimes }),
+      ...(data.flightTimes && { keyFlightTimes: data.flightTimes }),
+      ...(data.backspaceRates && { backspaceRates: data.backspaceRates }),
+      ...(data.typingSpeeds && { typingSpeeds: data.typingSpeeds }),
+    };
+  }
+
+  const result = await new Promise((resolve, reject) => {
+    ws.onopen = () => {
+      ws.send(JSON.stringify(requestData));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        resolve(parsed);
+      } catch (err) {
+        reject(new Error("Invalid response from prediction server"));
+      } finally {
+        ws.close();
       }
     };
-    
-  
-    // Await the message using Promise inside
-    const result = await new Promise((resolve, reject) => {
-      ws.on("open", () => {
-        ws.send(JSON.stringify(requestData));
-      });
-  
-      ws.on("message", (message) => {
-        try {
-          const parsed = JSON.parse(message);
-          resolve(parsed);
-        } catch (err) {
-          reject(new Error("Invalid response from prediction server"));
-        } finally {
-          ws.close();
-        }
-      });
-  
-      ws.on("error", (err) => {
-        reject(new Error(`WebSocket connection error: ${err.message}`));
-      });
-    });
-  
-    return result;
+
+    ws.onerror = (err) => {
+      reject(new Error(`WebSocket connection error: ${err.message}`));
+    };
+  });
+
+  return result;
 };
+
   
 
 export const sendData = async (req, res) => {
-    const userId = 1;
+    const userId = 8;
     console.log("added")
   
     const {
@@ -72,7 +81,7 @@ export const sendData = async (req, res) => {
       return res.status(401).json({ error: "Unauthorized: No user ID found." });
     }
   
-    const requestData = {
+    const data = {
       user_id: userId,
       data: {
         swiping: {
@@ -90,13 +99,13 @@ export const sendData = async (req, res) => {
         }
       }
     };
-    console.log(requestData)
+    console.log(data)
   
     try {
-      // const response = await axios.post('http://localhost:5000/train_model', requestData);
+      const response = await axios.post('http://localhost:5000/train_model', data);
       res.status(200).json({
         message: 'Data sent successfully to prediction server.',
-        response:requestData
+        response:response.data
     });
     } catch (error) {
       console.error("Prediction API error:", error.message);

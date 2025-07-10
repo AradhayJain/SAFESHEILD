@@ -1,10 +1,14 @@
-# app.py
+    # app.py
 
 from flask import Flask, request, jsonify, send_file
 from util_training import get_model
 import os
 
 app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return jsonify({"message": "ML Training API is up and running!"}), 200
 
 @app.route('/train_model', methods=['POST'])
 def train_model():

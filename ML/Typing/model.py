@@ -69,100 +69,114 @@ class TypingModelTrainer:
         logger.info(f"Data preprocessing: {len(df)} -> {len(df_clean)} samples")
         return df_clean
 
-    # Add this method to TypingModelTrainer class:
+    def train_typing_model_from_dataframe(self, user_id: str, df: pd.DataFrame) -> Dict:
+        """Train a personalized typing model from DataFrame (for onboarding)"""
+        try:
+            # Validate DataFrame
+            is_valid, message = self.validate_data(df)
+            if not is_valid:
+                return {'error': message}
+            
+            # Preprocess data
+            df_clean = self.preprocess_data(df)
+            
+            if len(df_clean) < 3:  # Relaxed minimum for onboarding
+                return {'error': f'Insufficient data after preprocessing: {len(df_clean)} samples'}
+            
+            # Extract features
+            X = df_clean[self.feature_columns].values
+            
+            # Adjust for limited data
+            if len(X) < 10:
+                # Don't split for very small datasets
+                X_train = X
+                X_val = X  # Use same data for validation
+            else:
+                X_train, X_val = train_test_split(X, test_size=0.2, random_state=self.random_state)
+            
+            # Scale features
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_val_scaled = scaler.transform(X_val)
+            
+            # Adjust contamination for limited data
+            if len(df_clean) < 15:
+                contamination = 0.15  # More lenient
+            else:
+                contamination = self.contamination
+            
+            # Train model
+            model = IsolationForest(
+                n_estimators=self.n_estimators,
+                contamination=contamination,
+                random_state=self.random_state,
+                max_samples='auto'
+            )
+            model.fit(X_train_scaled)
+            
+            # Validate model performance
+            train_predictions = model.predict(X_train_scaled)
+            val_predictions = model.predict(X_val_scaled)
+            
+            train_outliers = np.sum(train_predictions == -1) / len(train_predictions)
+            val_outliers = np.sum(val_predictions == -1) / len(val_predictions)
+            
+            # More lenient validation for onboarding
+            if 0.02 <= train_outliers <= 0.3:  # Wider range
+                model_path = f'{self.model_dir}/{user_id}_typing_model.pkl'
+                scaler_path = f'{self.model_dir}/{user_id}_typing_scaler.pkl'
+                
+                with open(model_path, 'wb') as f:
+                    pickle.dump(model, f)
+                with open(scaler_path, 'wb') as f:
+                    pickle.dump(scaler, f)
+                
+                # Save training metadata
+                metadata = {
+                    'user_id': user_id,
+                    'training_date': datetime.now().isoformat(),
+                    'total_samples': len(df),
+                    'training_samples': len(X_train),
+                    'validation_samples': len(X_val),
+                    'train_outlier_rate': round(train_outliers, 4),
+                    'val_outlier_rate': round(val_outliers, 4),
+                    'contamination': contamination,
+                    'feature_columns': self.feature_columns,
+                    'training_type': 'onboarding_dataframe'
+                }
+                
+                metadata_path = f'{self.model_dir}/{user_id}_typing_metadata.json'
+                with open(metadata_path, 'w') as f:
+                    import json
+                    json.dump(metadata, f, indent=2)
+                
+                logger.info(f"Typing model trained from DataFrame for {user_id}")
+                return {
+                    'success': True,
+                    'message': f'Model trained successfully for {user_id}',
+                    'metadata': metadata,
+                    'model_path': model_path,
+                    'scaler_path': scaler_path
+                }
+            else:
+                return {'error': f'Model validation failed: outlier rate {train_outliers:.4f}'}
+                
+        except Exception as e:
+            logger.error(f"Error training typing model from DataFrame for {user_id}: {str(e)}")
+            return {'error': f'Training failed: {str(e)}'}
 
-def train_typing_model_from_dataframe(self, user_id: str, df: pd.DataFrame) -> Dict:
-    """Train a personalized typing model from DataFrame (for onboarding)"""
-    try:
-        # Validate DataFrame
-        is_valid, message = self.validate_data(df)
-        if not is_valid:
-            return {'error': message}
-        
-        # Preprocess data
-        df_clean = self.preprocess_data(df)
-        
-        if len(df_clean) < 3:  # Relaxed minimum for onboarding
-            return {'error': f'Insufficient data after preprocessing: {len(df_clean)} samples'}
-        
-        # Extract features
-        X = df_clean[self.feature_columns].values
-        
-        # Adjust for limited data
-        if len(X) < 10:
-            # Don't split for very small datasets
-            X_train = X
-            X_val = X  # Use same data for validation
-        else:
-            X_train, X_val = train_test_split(X, test_size=0.2, random_state=self.random_state)
-        
-        # Scale features
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_val_scaled = scaler.transform(X_val)
-        
-        # Adjust contamination for limited data
-        if len(df_clean) < 15:
-            contamination = 0.15  # More lenient
-        else:
-            contamination = self.contamination
-        
-        # Train model
-        model = IsolationForest(
-            n_estimators=self.n_estimators,
-            contamination=contamination,
-            random_state=self.random_state,
-            max_samples='auto'
-        )
-        model.fit(X_train_scaled)
-        
-        # Validate model performance
-        train_predictions = model.predict(X_train_scaled)
-        val_predictions = model.predict(X_val_scaled)
-        
-        train_outliers = np.sum(train_predictions == -1) / len(train_predictions)
-        val_outliers = np.sum(val_predictions == -1) / len(val_predictions)
-        
-        # More lenient validation for onboarding
-        if 0.02 <= train_outliers <= 0.3:  # Wider range
-            model_path = f'{self.model_dir}/{user_id}_typing_model.pkl'
-            scaler_path = f'{self.model_dir}/{user_id}_typing_scaler.pkl'
+    def train_typing_model(self, user_id: str) -> Dict:
+        """Legacy method for backward compatibility"""
+        try:
+            # This method should load CSV data and call train_typing_model_from_dataframe
+            csv_path = f'./data/{user_id}_typing_session_dataset.csv'
             
-            with open(model_path, 'wb') as f:
-                pickle.dump(model, f)
-            with open(scaler_path, 'wb') as f:
-                pickle.dump(scaler, f)
+            if not os.path.exists(csv_path):
+                return {'error': f'Training data file not found: {csv_path}'}
             
-            # Save training metadata
-            metadata = {
-                'user_id': user_id,
-                'training_date': datetime.now().isoformat(),
-                'total_samples': len(df),
-                'training_samples': len(X_train),
-                'validation_samples': len(X_val),
-                'train_outlier_rate': round(train_outliers, 4),
-                'val_outlier_rate': round(val_outliers, 4),
-                'contamination': contamination,
-                'feature_columns': self.feature_columns,
-                'training_type': 'onboarding_dataframe'
-            }
+            df = pd.read_csv(csv_path)
+            return self.train_typing_model_from_dataframe(user_id, df)
             
-            metadata_path = f'{self.model_dir}/{user_id}_typing_metadata.json'
-            with open(metadata_path, 'w') as f:
-                import json
-                json.dump(metadata, f, indent=2)
-            
-            logger.info(f"Typing model trained from DataFrame for {user_id}")
-            return {
-                'success': True,
-                'message': f'Model trained successfully for {user_id}',
-                'metadata': metadata,
-                'model_path': model_path,
-                'scaler_path': scaler_path
-            }
-        else:
-            return {'error': f'Model validation failed: outlier rate {train_outliers:.4f}'}
-            
-    except Exception as e:
-        logger.error(f"Error training typing model from DataFrame for {user_id}: {str(e)}")
-        return {'error': f'Training failed: {str(e)}'}
+        except Exception as e:
+            logger.error(f"Error in legacy train_typing_model for {user_id}: {str(e)}")
+            return {'error': f'Legacy training failed: {str(e)}'}

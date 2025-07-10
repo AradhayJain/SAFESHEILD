@@ -23,7 +23,7 @@ class SwipeModelTrainer:
         self.contamination = 0.1
         self.n_estimators = 100
         self.random_state = 42
-        self.min_samples = 10   # Minimum samples needed for training
+        self.min_samples = 3   # Minimum samples needed for training
         
         # Expected feature columns
         self.feature_columns = [
@@ -61,14 +61,13 @@ class SwipeModelTrainer:
             Q1 = df_clean[col].quantile(0.25)
             Q3 = df_clean[col].quantile(0.75)
             IQR = Q3 - Q1
-            lower_bound = Q1 - 1.5 * IQR
-            upper_bound = Q3 + 1.5 * IQR
-            df_clean = df_clean[(df_clean[col] >= lower_bound) & (df_clean[col] <= upper_bound)]
+            if IQR > 0:
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+                df_clean = df_clean[(df_clean[col] >= lower_bound) & (df_clean[col] <= upper_bound)]
 
         logger.info(f"Data preprocessing: {len(df)} -> {len(df_clean)} samples")
         return df_clean
-
-    # Add this method SwipeModelTrainer class:
 
     def train_swipe_model_from_dataframe(self, user_id: str, df: pd.DataFrame) -> Dict:
         """Train a personalized swipe model from DataFrame (for onboarding)"""
@@ -123,7 +122,7 @@ class SwipeModelTrainer:
             val_outliers = np.sum(val_predictions == -1) / len(val_predictions)
             
             # More lenient validation for onboarding
-            if 0.02 <= train_outliers <= 0.3:  # Wider range
+            if 0.02 <= train_outliers <= 0.4:  # Wider range
                 model_path = f'{self.model_dir}/{user_id}_swipe_model.pkl'
                 scaler_path = f'{self.model_dir}/{user_id}_swipe_scaler.pkl'
                 
@@ -165,3 +164,19 @@ class SwipeModelTrainer:
         except Exception as e:
             logger.error(f"Error training swipe model from DataFrame for {user_id}: {str(e)}")
             return {'error': f'Training failed: {str(e)}'}
+
+    def train_swipe_model(self, user_id: str) -> Dict:
+        """Legacy method for backward compatibility"""
+        try:
+            # This method should load CSV data and call train_swipe_model_from_dataframe
+            csv_path = f'./data/{user_id}_swipe_session_dataset.csv'
+            
+            if not os.path.exists(csv_path):
+                return {'error': f'Training data file not found: {csv_path}'}
+            
+            df = pd.read_csv(csv_path)
+            return self.train_swipe_model_from_dataframe(user_id, df)
+            
+        except Exception as e:
+            logger.error(f"Error in legacy train_swipe_model for {user_id}: {str(e)}")
+            return {'error': f'Legacy training failed: {str(e)}'}

@@ -135,108 +135,26 @@ def get_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
             'user_id': str(user_id)
         }
 
-def _train_swipe_model_fallback(trainer: SwipeModelTrainer, user_id: str, df, metadata: Dict) -> Dict:
-    """Fallback method for training swipe model when new method is not available"""
-    try:
-        import tempfile
-        import os
-        
-        # Create temporary CSV file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_file:
-            df.to_csv(temp_file.name, index=False)
-            temp_path = temp_file.name
-        
-        # Temporarily modify trainer to use temp file
-        original_data_dir = trainer.data_dir
-        temp_data_dir = os.path.dirname(temp_path)
-        temp_filename = f"{user_id}_swipe_session_dataset.csv"
-        final_temp_path = os.path.join(temp_data_dir, temp_filename)
-        
-        # Move temp file to expected location
-        os.rename(temp_path, final_temp_path)
-        
-        # Update trainer data directory
-        trainer.data_dir = temp_data_dir
-        
-        # Adjust contamination based on readiness
-        readiness = metadata.get('readiness_level', 'sufficient')
-        if readiness == 'minimal':
-            trainer.contamination = 0.2
-            trainer.min_samples = max(5, len(df) // 2)
-        elif readiness == 'limited':
-            trainer.contamination = 0.15
-            trainer.min_samples = max(8, len(df) // 2)
-        elif readiness == 'sufficient':
-            trainer.contamination = 0.12
-        
-        # Train model
-        result = trainer.train_swipe_model(user_id)
-        
-        # Restore original settings
-        trainer.data_dir = original_data_dir
-        
-        # Clean up temp file
-        try:
-            os.unlink(final_temp_path)
-        except:
-            pass
-        
-        return result
-        
-    except Exception as e:
-        logger.error(f"Error in swipe model fallback training: {str(e)}")
-        return {'error': f'Fallback training failed: {str(e)}'}
+# QUICK FIX 1: In util_training.py, replace the fallback methods:
 
 def _train_typing_model_fallback(trainer: TypingModelTrainer, user_id: str, df, metadata: Dict) -> Dict:
-    """Fallback method for training typing model when new method is not available"""
+    """Fixed fallback method for training typing model"""
     try:
-        import tempfile
-        import os
-        
-        # Create temporary CSV file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as temp_file:
-            df.to_csv(temp_file.name, index=False)
-            temp_path = temp_file.name
-        
-        # Temporarily modify trainer to use temp file
-        original_data_dir = trainer.data_dir
-        temp_data_dir = os.path.dirname(temp_path)
-        temp_filename = f"{user_id}_typing_session_dataset.csv"
-        final_temp_path = os.path.join(temp_data_dir, temp_filename)
-        
-        # Move temp file to expected location
-        os.rename(temp_path, final_temp_path)
-        
-        # Update trainer data directory
-        trainer.data_dir = temp_data_dir
-        
-        # Adjust contamination based on readiness
-        readiness = metadata.get('readiness_level', 'sufficient')
-        if readiness == 'minimal':
-            trainer.contamination = 0.2
-            trainer.min_samples = max(5, len(df) // 2)
-        elif readiness == 'limited':
-            trainer.contamination = 0.15
-            trainer.min_samples = max(7, len(df) // 2)
-        elif readiness == 'sufficient':
-            trainer.contamination = 0.12
-        
-        # Train model
-        result = trainer.train_typing_model(user_id)
-        
-        # Restore original settings
-        trainer.data_dir = original_data_dir
-        
-        # Clean up temp file
-        try:
-            os.unlink(final_temp_path)
-        except:
-            pass
-        
+        # Just use the DataFrame method directly - no data_dir needed
+        result = trainer.train_typing_model_from_dataframe(user_id, df)
         return result
-        
     except Exception as e:
         logger.error(f"Error in typing model fallback training: {str(e)}")
+        return {'error': f'Fallback training failed: {str(e)}'}
+
+def _train_swipe_model_fallback(trainer: SwipeModelTrainer, user_id: str, df, metadata: Dict) -> Dict:
+    """Fixed fallback method for training swipe model"""
+    try:
+        # Just use the DataFrame method directly - no data_dir needed  
+        result = trainer.train_swipe_model_from_dataframe(user_id, df)
+        return result
+    except Exception as e:
+        logger.error(f"Error in swipe model fallback training: {str(e)}")
         return {'error': f'Fallback training failed: {str(e)}'}
 
 def validate_onboarding_data(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
