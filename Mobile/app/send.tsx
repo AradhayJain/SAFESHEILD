@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function SendScreen() {
   const router = useRouter();
@@ -9,7 +10,12 @@ export default function SendScreen() {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
-  const handleSendMoney = () => {
+  // Helper to handle text input changes (no behaviour tracking)
+  const handleTyping = (text: string, _prevText: string, setText: (v: string) => void) => {
+    setText(text);
+  };
+
+  const handleSendMoney = async () => {
     if (!upi || !amount) {
       Alert.alert('Error', 'Please enter UPI ID and amount.');
       return;
@@ -21,67 +27,69 @@ export default function SendScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f7fafd' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.container}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color="#244A85" />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-
-        {/* UPI/Mobile Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Mobile number or UPI ID"
-            value={upi}
-            onChangeText={setUpi}
-            keyboardType="default"
-            autoCapitalize="none"
-          />
-          <TouchableOpacity>
-            <MaterialIcons name="arrow-forward-ios" size={22} color="#1976D2" />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: '#f7fafd' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Back Button */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={24} color="#244A85" />
+            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
-        </View>
 
-        {/* Amount Input */}
-        <View style={styles.inputRow}>
-          <Text style={{ marginLeft: 10 }}>
-            ₹
+          {/* UPI/Mobile Input */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Mobile number or UPI ID"
+              value={upi}
+              onChangeText={text => handleTyping(text, upi, setUpi)}
+              keyboardType="default"
+              autoCapitalize="none"
+            />
+            <TouchableOpacity>
+              <MaterialIcons name="arrow-forward-ios" size={22} color="#1976D2" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Amount Input */}
+          <View style={styles.inputRow}>
+            <Text style={{ marginLeft: 10 }}>
+              ₹
+            </Text>
+            <TextInput
+              style={[styles.input, { borderWidth: 0, marginLeft: 4 }]}
+              placeholder="Amount"
+              value={amount}
+              onChangeText={text => handleTyping(text, amount, setAmount)}
+              keyboardType="numeric"
+            />
+          </View>
+
+          {/* Note Input */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Note (Optional)"
+              value={note}
+              onChangeText={text => handleTyping(text, note, setNote)}
+            />
+          </View>
+
+          {/* Send Money Button */}
+          <TouchableOpacity style={styles.sendBtn} onPress={handleSendMoney}>
+            <Text style={styles.sendBtnText}>Send Money</Text>
+          </TouchableOpacity>
+
+          {/* Info Text */}
+          <Text style={styles.infoText}>
+            You’ll be asked to enter your UPI PIN to confirm
           </Text>
-          <TextInput
-            style={[styles.input, { borderWidth: 0, marginLeft: 4 }]}
-            placeholder="Amount"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
         </View>
-
-        {/* Note Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Note (Optional)"
-            value={note}
-            onChangeText={setNote}
-          />
-        </View>
-
-        {/* Send Money Button */}
-        <TouchableOpacity style={styles.sendBtn} onPress={handleSendMoney}>
-          <Text style={styles.sendBtnText}>Send Money</Text>
-        </TouchableOpacity>
-
-        {/* Info Text */}
-        <Text style={styles.infoText}>
-          You’ll be asked to enter your UPI PIN to confirm
-        </Text>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 

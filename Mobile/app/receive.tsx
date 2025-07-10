@@ -2,58 +2,70 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function ReceiveScreen() {
   const router = useRouter();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
 
+  // Helper to handle text input changes (no behaviour tracking)
+  const handleTyping = (text: string, _prevText: string, setText: (v: string) => void) => {
+    setText(text);
+  };
+
+  const handleReceiveMoney = async () => {
+    // You can add your receive logic here
+  };
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f7fafd' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.container}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={26} color="#222" />
-        </TouchableOpacity>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: '#f7fafd' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Back Button */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={26} color="#222" />
+          </TouchableOpacity>
 
-        {/* Heading */}
-        <Text style={styles.heading}>Receive Money</Text>
+          {/* Heading */}
+          <Text style={styles.heading}>Receive Money</Text>
 
-        {/* Amount Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Amount"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
+          {/* Amount Input */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Amount"
+              value={amount}
+              onChangeText={text => handleTyping(text, amount, setAmount)}
+              keyboardType="numeric"
+            />
+          </View>
+
+          {/* Note Input */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Note (Optional)"
+              value={note}
+              onChangeText={text => handleTyping(text, note, setNote)}
+            />
+          </View>
+
+          {/* Receive Money Button */}
+          <TouchableOpacity style={styles.receiveBtn} onPress={handleReceiveMoney}>
+            <Text style={styles.receiveBtnText}>Receive Money</Text>
+          </TouchableOpacity>
+
+          {/* Info Text */}
+          <Text style={styles.infoText}>
+            Share your UPI ID to receive payments
+          </Text>
         </View>
-
-        {/* Note Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Note (Optional)"
-            value={note}
-            onChangeText={setNote}
-          />
-        </View>
-
-        {/* Receive Money Button */}
-        <TouchableOpacity style={styles.receiveBtn}>
-          <Text style={styles.receiveBtnText}>Receive Money</Text>
-        </TouchableOpacity>
-
-        {/* Info Text */}
-        <Text style={styles.infoText}>
-          Share your UPI ID to receive payments
-        </Text>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 

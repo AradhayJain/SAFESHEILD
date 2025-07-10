@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GestureHandlerRootView, PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import axios from 'axios';
 
 const questions = [
     "Describe yourself in one paragraph.",
@@ -153,7 +154,7 @@ export default function TrackBehaviourScreen() {
           if (current < questions.length - 1) {
             setCurrent(current + 1);
           } else {
-            // Print only the final arrays after all questions are answered
+            // Remove router.replace('/login') here
             setTimeout(() => {
               console.log('FINAL swipeDistances:', swipeDistances);
               console.log('FINAL swipeDurations:', swipeDurations);
@@ -164,12 +165,34 @@ export default function TrackBehaviourScreen() {
               console.log('FINAL flightTimes:', flightTimes);
               console.log('FINAL backspaceRates:', backspaceRates);
               console.log('FINAL typingSpeeds:', typingSpeeds);
-              router.replace('/login');
+              // Do NOT navigate away here
             }, 0);
           }
         }
       }
       gestureStart.current = null;
+    }
+  };
+
+  // Submit handler
+  const handleSubmit = async () => {
+    try {
+      const { data } = await axios.post('https://back-s4p9.onrender.com/api/data/getData', {
+        swipeDistances,
+        swipeDurations,
+        swipeSpeeds,
+        swipeDirections,
+        swipeAccelerations,
+        holdTimes,
+        flightTimes,
+        backspaceRates,
+        typingSpeeds,
+      });
+      if(data){console.log('Data received:', data);}
+      Alert.alert('Data submitted successfully!');
+      router.replace('/login');
+    } catch (error) {
+      Alert.alert('Submission failed', (error as any)?.response?.data?.message || (typeof error === 'string' ? error : 'Unknown error'));
     }
   };
 
@@ -215,6 +238,26 @@ export default function TrackBehaviourScreen() {
                 <Text style={styles.swipeHint}>
                   Swipe 3 times to go to next question ({swipeCount[current]}/3)
                 </Text>
+                {/* Show Submit button only on last question and after 3 swipes */}
+                {current === questions.length - 1 && swipeCount[current] >= 3 && (
+                  <View style={{ marginTop: 16, width: '100%' }}>
+                    <Text
+                      style={{
+                        backgroundColor: '#244A85',
+                        color: '#fff',
+                        textAlign: 'center',
+                        padding: 12,
+                        borderRadius: 8,
+                        fontWeight: 'bold',
+                        fontSize: 16,
+                        overflow: 'hidden',
+                      }}
+                      onPress={handleSubmit}
+                    >
+                      Submit
+                    </Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.progress}>Step {current + 1} of {questions.length}</Text>
             </View>

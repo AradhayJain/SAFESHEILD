@@ -85,7 +85,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.firstTimeBtn}
-          onPress={() => router.replace('/register' as any)}
+          onPress={() => router.replace('/permission')}
         >
           <Text style={styles.firstTimeBtnText}>First time user? Register</Text>
         </TouchableOpacity>

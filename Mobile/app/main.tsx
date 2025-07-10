@@ -1,28 +1,92 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
-import { BehaviourTracker } from './behaviourTracker';
-import { PanGestureHandler, PanGestureHandlerGestureEvent, GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
+import { useSocket } from './SocketContext';
 
 export default function MainScreen() {
   const router = useRouter();
+  const socket = useSocket();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
 
-  // Typing tracking state (for future use, no input field here)
-  const keyDownTime = useRef<number | null>(null);
-  const lastKeyUpTime = useRef<number | null>(null);
-  const firstKeyDownTime = useRef<number | null>(null);
-  const totalKeys = useRef<number>(0);
-  const backspaceCount = useRef<number>(0);
+  // Swipe data states
+  const [swipeDistances, setSwipeDistances] = useState<number[]>([]);
+  const [swipeDurations, setSwipeDurations] = useState<number[]>([]);
+  const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
+  const [swipeDirections, setSwipeDirections] = useState<string[]>([]);
+  const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
 
-  // Gesture tracking state for the swipe area
-  const gestureStart = useRef<{x: number, y: number, t: number} | null>(null);
+  // For tracking swipe
+  const swipeStart = React.useRef<{ x: number; y: number; time: number } | null>(null);
+  const lastVelocity = React.useRef<number>(0);
+  useEffect(() => {
+    // Receive messages from server
+    socket.on('prediction-result', (msg: string) => {
+      console.log('Received message:', msg);
+    });
 
-  // Ref for ScrollView to use with simultaneousHandlers
-  const scrollRef = useRef(null);
+    return () => {
+      socket.off('prediction-result');
+    };
+  }, [socket]);
+
+  const onGestureEvent = React.useCallback((event: any) => {
+    // No-op, required for PanGestureHandler
+  }, []);
+
+  const onHandlerStateChange = React.useCallback((event: import('react-native-gesture-handler').PanGestureHandlerStateChangeEvent) => {
+    const { state, velocityX, velocityY, absoluteX, absoluteY } = event.nativeEvent;
+    if (state === GestureState.BEGAN) {
+      swipeStart.current = { x: absoluteX, y: absoluteY, time: Date.now() };
+      lastVelocity.current = 0;
+    }
+    if (state === GestureState.END && swipeStart.current) {
+      const dx = absoluteX - swipeStart.current.x;
+      const dy = absoluteY - swipeStart.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const duration = Date.now() - swipeStart.current.time;
+      const speed = distance / (duration || 1); // px/ms
+      const direction =
+        Math.abs(dx) > Math.abs(dy)
+          ? dx > 0
+            ? 'right'
+            : 'left'
+          : dy > 0
+          ? 'down'
+          : 'up';
+      const acceleration = (Math.sqrt(velocityX * velocityX + velocityY * velocityY) - lastVelocity.current) / (duration || 1);
+
+      setSwipeDistances((prev) => [...prev, distance]);
+      setSwipeDurations((prev) => [...prev, duration]);
+      setSwipeSpeeds((prev) => [...prev, speed]);
+      setSwipeDirections((prev) => [...prev, direction]);
+      setSwipeAccelerations((prev) => [...prev, acceleration]);
+
+      // Only print the requested arrays to the terminal
+      console.log({
+        swipeDistances: [...swipeDistances, distance],
+        swipeDurations: [...swipeDurations, duration],
+        swipeSpeeds: [...swipeSpeeds, speed],
+        swipeDirections: [...swipeDirections, direction],
+        swipeAccelerations: [...swipeAccelerations, acceleration],
+      });
+      const data = {
+      swipeDistances,
+      swipeDurations,
+      swipeSpeeds,
+      swipeDirections,
+      swipeAccelerations
+  };
+
+  socket.emit('send-features', {data:data,userID:user._id});
+
+      lastVelocity.current = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+      swipeStart.current = null;
+    }
+  }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations]);
 
   useEffect(() => {
     const loadStoredData = async () => {
@@ -37,63 +101,16 @@ export default function MainScreen() {
     };
 
     loadStoredData();
-
-    // Print tracked behaviour data to console on mount
-    BehaviourTracker.getAll().then(data => {
-      console.log('Tracked Behaviour Data:', data);
-    });
   }, []);
-
-  // --- Gesture tracking for the entire screen ---
-  const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
-    // No-op
-  };
-
-  const onHandlerStateChange = (event: PanGestureHandlerGestureEvent) => {
-    const { nativeEvent } = event;
-    if (nativeEvent.state === 2) { // BEGAN
-      gestureStart.current = { x: nativeEvent.x, y: nativeEvent.y, t: Date.now() };
-    }
-    if (nativeEvent.state === 5 && gestureStart.current) { // END
-      const x1 = gestureStart.current.x;
-      const y1 = gestureStart.current.y;
-      const t1 = gestureStart.current.t;
-      const x2 = nativeEvent.x;
-      const y2 = nativeEvent.y;
-      const t2 = Date.now();
-
-      const dx = x2 - x1;
-      const dy = y2 - y1;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      const duration = t2 - t1;
-      const speed = duration > 0 ? distance / duration : 0;
-      const direction = Math.atan2(dy, dx);
-      const acceleration = duration > 0 ? speed / duration : 0;
-
-      // Only record if swipe is significant
-      if (distance > 20 && duration > 0) {
-        BehaviourTracker.addSwipeDistance(distance);
-        BehaviourTracker.addSwipeDuration(duration);
-        BehaviourTracker.addSwipeSpeed(speed);
-        BehaviourTracker.addSwipeDirection(direction);
-        BehaviourTracker.addSwipeAcceleration(acceleration);
-        console.log('Swipe recorded:', { distance, duration, speed, direction, acceleration });
-      }
-
-      gestureStart.current = null;
-    }
-  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <PanGestureHandler
         onGestureEvent={onGestureEvent}
         onHandlerStateChange={onHandlerStateChange}
-        simultaneousHandlers={scrollRef}
       >
         <View style={{ flex: 1 }}>
           <ScrollView
-            ref={scrollRef}
             style={styles.container}
             contentContainerStyle={{ flexGrow: 1 }}
             showsVerticalScrollIndicator={false}
@@ -209,7 +226,7 @@ export default function MainScreen() {
 
 const styles = StyleSheet.create({
   outer: { flex: 1, backgroundColor: '#f7fafd' },
-  container: { flex: 1, paddingHorizontal: 16, marginBottom: 70 },
+  container: { flex: 1, paddingHorizontal: 16, marginBottom: 0 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 32, marginBottom: 12 },
   greeting: { fontSize: 22, fontWeight: 'bold', color: '#244A85' },
   status: { fontSize: 15, color: '#244A85' },
@@ -237,7 +254,23 @@ const styles = StyleSheet.create({
   activityTime: { color: '#b0b0b0', fontSize: 12, marginTop: 2 },
   profileBtn: { backgroundColor: '#244A85', borderRadius: 8, padding: 14, alignItems: 'center', marginVertical: 24 },
   profileBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  navBar: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#fff', flexDirection: 'row', height: 64, borderTopLeftRadius: 18, borderTopRightRadius: 18, elevation: 10, justifyContent: 'space-around', alignItems: 'center' },
+  navBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    flexDirection: 'row',
+    height: 64,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    elevation: 10,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    // Remove marginBottom or paddingBottom if present
+    // Add this to avoid overlap with the gesture bar on iOS:
+    paddingBottom: Platform.OS === 'ios' ? 24 : 0,
+  },
   navItem: { alignItems: 'center', flex: 1 },
   navLabel: { color: '#b0b0b0', fontSize: 12, marginTop: 2 },
   navLabelActive: { color: '#2CC7A6', fontWeight: 'bold', fontSize: 12, marginTop: 2 },

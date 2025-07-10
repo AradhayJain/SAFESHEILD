@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Switch, ScrollView, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import Slider from '@react-native-community/slider';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const [isPasswordEnabled, setIsPasswordEnabled] = useState(true);
-  const [showLimitModal, setShowLimitModal] = useState(false);
-  const [transactionLimit, setTransactionLimit] = useState(50000);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
 
@@ -22,127 +19,96 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Feather name="arrow-left" size={24} color="#244A85" />
-        <Text style={styles.backText}>Back</Text>
-      </TouchableOpacity>
-      <MaterialCommunityIcons name="cog-outline" size={60} color="#2CC7A6" style={{ marginBottom: 16, marginTop: 40 }} />
-      <Text style={styles.title}>Settings Page</Text>
-      <Text style={styles.subtitle}>Manage your account settings and preferences</Text>
-      <ScrollView style={{ width: '100%' }} contentContainerStyle={{ alignItems: 'center', paddingBottom: 40 }}>
-        {/* Banking Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Banking Settings</Text>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => Alert.alert('Change Password', 'This is a dummy action for now.')}
-          >
-            <FontAwesome5 name="lock" size={20} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Change Password</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Biometric Login', 'This is a dummy action for now.')}>
-            <MaterialCommunityIcons name="fingerprint" size={22} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Biometric Login</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Manage Linked Devices', 'This is a dummy action for now.')}>
-            <Feather name="smartphone" size={20} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Manage Linked Devices</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={() => setShowLimitModal(true)}>
-            <MaterialCommunityIcons name="cash-multiple" size={22} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Set Transaction Limits</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-        </View>
-        {/* Notifications & Security */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications & Security</Text>
-          <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Two-Factor Authentication', 'This is a dummy action for now.')}>
-            <MaterialCommunityIcons name="shield-check" size={22} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Two-Factor Authentication</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Manage Notifications', 'This is a dummy action for now.')}>
-            <Feather name="bell" size={20} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Manage Notifications</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-        </View>
-        {/* App Preferences */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Preferences</Text>
-          <TouchableOpacity style={styles.row} onPress={() => setShowLanguageModal(true)}>
-            <Feather name="globe" size={20} color="#244A85" style={styles.icon} />
-            <Text style={styles.optionText}>Language ({selectedLanguage})</Text>
-            <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
-          </TouchableOpacity>
-        </View>
-        {/* Logout */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
-            <MaterialCommunityIcons name="logout" size={22} color="#FF3B30" style={styles.icon} />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-      {/* Transaction Limit Modal */}
-      <Modal
-        visible={showLimitModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowLimitModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Set Transaction Limit</Text>
-            <Text style={styles.limitValue}>₹{transactionLimit.toLocaleString()}</Text>
-            <Slider
-              style={{ width: '100%', height: 40 }}
-              minimumValue={1000}
-              maximumValue={100000}
-              step={1000}
-              minimumTrackTintColor="#2CC7A6"
-              maximumTrackTintColor="#ccc"
-              thumbTintColor="#2CC7A6"
-              value={transactionLimit}
-              onValueChange={setTransactionLimit}
-            />
-            <Pressable style={styles.closeBtn} onPress={() => setShowLimitModal(false)}>
-              <Text style={styles.closeBtnText}>Done</Text>
-            </Pressable>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Feather name="arrow-left" size={24} color="#244A85" />
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
+        <MaterialCommunityIcons name="cog-outline" size={60} color="#2CC7A6" style={{ marginBottom: 16, marginTop: 40 }} />
+        <Text style={styles.title}>Settings Page</Text>
+        <Text style={styles.subtitle}>Manage your account settings and preferences</Text>
+        <View style={{ width: '100%', alignItems: 'center', paddingBottom: 40 }}>
+          {/* Banking Settings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Banking Settings</Text>
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => Alert.alert('Change Password', 'This is a dummy action for now.')}
+            >
+              <FontAwesome5 name="lock" size={20} color="#244A85" style={styles.icon} />
+              <Text style={styles.optionText}>Change Password</Text>
+              <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Biometric Login', 'This is a dummy action for now.')}>
+              <MaterialCommunityIcons name="fingerprint" size={22} color="#244A85" style={styles.icon} />
+              <Text style={styles.optionText}>Biometric Login</Text>
+              <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Manage Linked Devices', 'This is a dummy action for now.')}>
+              <Feather name="smartphone" size={20} color="#244A85" style={styles.icon} />
+              <Text style={styles.optionText}>Manage Linked Devices</Text>
+              <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+          {/* Notifications & Security */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Notifications & Security</Text>
+            <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Two-Factor Authentication', 'This is a dummy action for now.')}>
+              <MaterialCommunityIcons name="shield-check" size={22} color="#244A85" style={styles.icon} />
+              <Text style={styles.optionText}>Two-Factor Authentication</Text>
+              <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.row} onPress={() => Alert.alert('Manage Notifications', 'This is a dummy action for now.')}>
+              <Feather name="bell" size={20} color="#244A85" style={styles.icon} />
+              <Text style={styles.optionText}>Manage Notifications</Text>
+              <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+          {/* App Preferences */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>App Preferences</Text>
+            <TouchableOpacity style={styles.row} onPress={() => setShowLanguageModal(true)}>
+              <Feather name="globe" size={20} color="#244A85" style={styles.icon} />
+              <Text style={styles.optionText}>Language ({selectedLanguage})</Text>
+              <Feather name="chevron-right" size={22} color="#244A85" style={{ marginLeft: 'auto' }} />
+            </TouchableOpacity>
+          </View>
+          {/* Logout */}
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
+              <MaterialCommunityIcons name="logout" size={22} color="#FF3B30" style={styles.icon} />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-      {/* Language Modal */}
-      <Modal
-        visible={showLanguageModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowLanguageModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Select Language</Text>
-            <Pressable onPress={() => handleLanguageSelect('English')} style={{ marginVertical: 8 }}>
-              <Text style={{ fontSize: 18, color: selectedLanguage === 'English' ? '#2CC7A6' : '#244A85' }}>English</Text>
-            </Pressable>
-            <Pressable onPress={() => handleLanguageSelect('Hindi')} style={{ marginVertical: 8 }}>
-              <Text style={{ fontSize: 18, color: selectedLanguage === 'Hindi' ? '#2CC7A6' : '#244A85' }}>Hindi</Text>
-            </Pressable>
-            <Pressable onPress={() => handleLanguageSelect('Marathi')} style={{ marginVertical: 8 }}>
-              <Text style={{ fontSize: 18, color: selectedLanguage === 'Marathi' ? '#2CC7A6' : '#244A85' }}>Marathi</Text>
-            </Pressable>
-            <Pressable style={styles.closeBtn} onPress={() => setShowLanguageModal(false)}>
-              <Text style={styles.closeBtnText}>Done</Text>
-            </Pressable>
+        {/* Language Modal */}
+        <Modal
+          visible={showLanguageModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowLanguageModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Language</Text>
+              <Pressable onPress={() => handleLanguageSelect('English')} style={{ marginVertical: 8 }}>
+                <Text style={{ fontSize: 18, color: selectedLanguage === 'English' ? '#2CC7A6' : '#244A85' }}>English</Text>
+              </Pressable>
+              <Pressable onPress={() => handleLanguageSelect('Hindi')} style={{ marginVertical: 8 }}>
+                <Text style={{ fontSize: 18, color: selectedLanguage === 'Hindi' ? '#2CC7A6' : '#244A85' }}>Hindi</Text>
+              </Pressable>
+              <Pressable onPress={() => handleLanguageSelect('Marathi')} style={{ marginVertical: 8 }}>
+                <Text style={{ fontSize: 18, color: selectedLanguage === 'Marathi' ? '#2CC7A6' : '#244A85' }}>Marathi</Text>
+              </Pressable>
+              <Pressable style={styles.closeBtn} onPress={() => setShowLanguageModal(false)}>
+                <Text style={styles.closeBtnText}>Done</Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
@@ -205,12 +171,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#244A85',
     marginBottom: 16,
-  },
-  limitValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2CC7A6',
-    marginBottom: 12,
   },
   closeBtn: {
     marginTop: 18,

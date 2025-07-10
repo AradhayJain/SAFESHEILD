@@ -1,5 +1,11 @@
+// app/_layout.tsx
 import { Stack } from 'expo-router';
+import { SocketProvider } from './SocketContext'; // adjust path as needed
 
 export default function Layout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <SocketProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </SocketProvider>
+  );
 }

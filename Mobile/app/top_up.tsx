@@ -2,13 +2,19 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function TopUpScreen() {
   const router = useRouter();
   const [account, setAccount] = useState('');
   const [amount, setAmount] = useState('');
 
-  const handleTopUp = () => {
+  // Helper to handle text input changes (no behaviour tracking)
+  const handleTyping = (text: string, _prevText: string, setText: (v: string) => void) => {
+    setText(text);
+  };
+
+  const handleTopUp = async () => {
     if (!account || !amount) {
       Alert.alert('Error', 'Please enter account number and amount.');
       return;
@@ -19,53 +25,55 @@ export default function TopUpScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#f7fafd' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.container}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={26} color="#222" />
-        </TouchableOpacity>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: '#f7fafd' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.container}>
+          {/* Back Button */}
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Feather name="arrow-left" size={26} color="#222" />
+          </TouchableOpacity>
 
-        {/* Heading */}
-        <Text style={styles.heading}>Top Up</Text>
+          {/* Heading */}
+          <Text style={styles.heading}>Top Up</Text>
 
-        {/* Account Number Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Account Number"
-            value={account}
-            onChangeText={setAccount}
-            keyboardType="default"
-          />
+          {/* Account Number Input */}
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Account Number"
+              value={account}
+              onChangeText={text => handleTyping(text, account, setAccount)}
+              keyboardType="default"
+            />
+          </View>
+
+          {/* Amount Input */}
+          <View style={styles.inputRow}>
+            <Text style={{ marginLeft: 10, marginRight: 6, fontSize: 18 }}>₹</Text>
+            <TextInput
+              style={[styles.input, { borderWidth: 0, marginLeft: 0 }]}
+              placeholder="Amount"
+              value={amount}
+              onChangeText={text => handleTyping(text, amount, setAmount)}
+              keyboardType="numeric"
+            />
+          </View>
+
+          {/* Continue Button */}
+          <TouchableOpacity style={styles.continueBtn} onPress={handleTopUp}>
+            <Text style={styles.continueBtnText}>CONTINUE</Text>
+          </TouchableOpacity>
+
+          {/* Info Text */}
+          <Text style={styles.infoText}>
+            Top up a mobile number linked to your account
+          </Text>
         </View>
-
-        {/* Amount Input */}
-        <View style={styles.inputRow}>
-          <Text style={{ marginLeft: 10, marginRight: 6, fontSize: 18 }}>₹</Text>
-          <TextInput
-            style={[styles.input, { borderWidth: 0, marginLeft: 0 }]}
-            placeholder="Amount"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
-        </View>
-
-        {/* Continue Button */}
-        <TouchableOpacity style={styles.continueBtn} onPress={handleTopUp}>
-          <Text style={styles.continueBtnText}>CONTINUE</Text>
-        </TouchableOpacity>
-
-        {/* Info Text */}
-        <Text style={styles.infoText}>
-          Top up a mobile number linked to your account
-        </Text>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </GestureHandlerRootView>
   );
 }
 
