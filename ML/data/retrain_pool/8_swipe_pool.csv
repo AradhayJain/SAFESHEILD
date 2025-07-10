@@ -1,0 +1,2 @@
+speed_mean,speed_std,direction_mean,direction_std,acceleration_mean,acceleration_std,risk_category,timestamp,anomaly_score,is_outlier
+0.45299999999999996,0.031638584039112745,144.0,97.02576977277738,0.018099999999999998,0.0036455452267116365,high_risk,2025-07-10T23:50:45.692887,-0.4131,False

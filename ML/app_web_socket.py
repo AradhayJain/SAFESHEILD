@@ -28,11 +28,5 @@ async def predict(websocket: WebSocket):
 """
 uvicorn app_web_socket:app --host 0.0.0.0 --port 8000 :-run on terminal
 ws://localhost:8000/predict
-{
-    "user_id": "user123",
-    "data": {
-        "typing_speed": [3.1],
-        "touch_duration": [105]
-    }
-}
+
 """
