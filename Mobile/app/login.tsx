@@ -1,8 +1,11 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
+import { useContext } from 'react';
 
 export default function LoginScreen() {
   const [accountNumber, setAccountNumber] = useState('');
@@ -11,36 +14,43 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+
   const handleLogin = async () => {
-    if (!accountNumber || !password) {
-      Alert.alert('Error', 'Please enter both account number and password.');
-      return;
+  if (!accountNumber || !password) {
+    Alert.alert('Error', 'Please enter both account number and password.');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const response = await axios.post('https://back-s4p9.onrender.com/api/users/login', {
+      AccountNumber: accountNumber,
+      password,
+    });
+
+    const { token, user } = response.data;
+
+    if (token && user) {
+      // Store token and user in AsyncStorage
+      await AsyncStorage.setItem('authToken', token);
+      await AsyncStorage.setItem('authUser', JSON.stringify(user));
+
+      // Navigate only if storage succeeded
+      router.replace('/main');
+    } else {
+      Alert.alert('Login Failed', 'Invalid credentials');
     }
-    setLoading(true);
-    try {
-      const response = await axios.post('https://back-s4p9.onrender.com/api/users/login', {
-        AccountNumber: accountNumber,
-        password,
-      });
-      console.log('Login response:', response.data);
-      if (response.data) {
-        router.replace('/main');
-      } else {
-        // Always show "Invalid credentials" if login fails
-        Alert.alert('Login Failed', 'Invalid credentials');
-      }
-    } catch (error: any) {
-      console.log('Login error:', error);
-      // Always show "Invalid credentials" for 401 errors, else show generic error
-      if (error.response?.status === 401) {
-        Alert.alert('Login Failed', 'Invalid credentials');
-      } else {
-        Alert.alert('Error', error.response?.data?.message || 'Something went wrong');
-      }
-    } finally {
-      setLoading(false);
+  } catch (error: any) {
+    console.log('Login error:', error);
+    if (error.response?.status === 401) {
+      Alert.alert('Login Failed', 'Invalid credentials');
+    } else {
+      Alert.alert('Error', error.response?.data?.message || 'Something went wrong');
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>
@@ -75,7 +85,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.firstTimeBtn}
-          onPress={() => router.replace('/register' as any)}
+          onPress={() => router.replace('/permission')}
         >
           <Text style={styles.firstTimeBtnText}>First time user? Register</Text>
         </TouchableOpacity>
