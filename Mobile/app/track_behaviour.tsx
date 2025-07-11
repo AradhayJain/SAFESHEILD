@@ -106,7 +106,14 @@ export default function TrackBehaviourScreen() {
     }
 
     // Backspace rate: # of ⌫ presses / total keys
-    if (totalKeys.current[current] > 0) {
+      if (totalKeys.current[current] > 0) {
+      // Calculate backspace rate
+          const rate = backspaceCount.current[current] / totalKeys.current[current];
+          setBackspaceRates(prev => {
+          const updated = [...prev];
+          updated[current] = rate;
+          return updated;
+      });
 
       setTypingSpeeds(prev => {
         const updated = [...prev];
