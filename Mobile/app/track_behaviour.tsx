@@ -59,6 +59,7 @@ export default function TrackBehaviourScreen() {
 
     loadStoredData();
   }, []);
+
   const handleTyping = (text: string) => {
     // Simulate keyDown
     const now = Date.now();
@@ -86,32 +87,37 @@ export default function TrackBehaviourScreen() {
       return updated;
     });
 
-    // Simulate keyUp after a short delay
-    setTimeout(() => {
-      const upNow = Date.now();
-      if (keyDownTime.current !== null) {
-        setHoldTimes(prev => [...prev, upNow - keyDownTime.current!]);
-        lastKeyUpTime.current = upNow;
-      }
+    // Simulate keyUp (immediately after keyDown for mobile)
+    const upNow = Date.now();
+    if (keyDownTime.current !== null) {
+      setTimeout(() => {
+        setHoldTimes(prev => [...prev, Date.now() - keyDownTime.current!]);
+        lastKeyUpTime.current = Date.now();
+      }, 100); // delay in ms, e.g. 100ms
+    }
 
-      // Typing speed: total keys / (lastKeyUp - firstKeyDown) in chars/sec
-      if (firstKeyDownTime.current && lastKeyUpTime.current && totalKeys.current[current] > 0) {
-        setTypingSpeeds(prev => {
-          const updated = [...prev];
-          updated[current] = totalKeys.current[current] / ((lastKeyUpTime.current! - firstKeyDownTime.current!) / 1000);
-          return updated;
-        });
-      }
+    // Typing speed: total keys / (lastKeyUp - firstKeyDown) in chars/sec
+    if (firstKeyDownTime.current && lastKeyUpTime.current && totalKeys.current[current] > 0) {
+      setTypingSpeeds(prev => {
+        const updated = [...prev];
+        updated[current] = totalKeys.current[current] / ((lastKeyUpTime.current! - firstKeyDownTime.current!) / 1000);
+        return updated;
+      });
+    }
 
-      // Backspace rate: # of ⌫ presses / total keys
-      if (totalKeys.current[current] > 0) {
-        setBackspaceRates(prev => {
-          const updated = [...prev];
-          updated[current] = backspaceCount.current[current] / totalKeys.current[current];
-          return updated;
-        });
-      }
-    }, 30); // 30ms delay for more realistic hold time
+    // Backspace rate: # of ⌫ presses / total keys
+    if (totalKeys.current[current] > 0) {
+
+      setTypingSpeeds(prev => {
+        const updated = [...prev];
+        const elapsedMs = lastKeyUpTime.current! - firstKeyDownTime.current!;
+        const elapsedMinutes = elapsedMs / (1000 * 60);
+        const wpm = (totalKeys.current[current] / 5) / elapsedMinutes;
+        updated[current] = wpm;
+        return updated;
+      });
+
+    }
   };
 
   const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
@@ -137,7 +143,8 @@ export default function TrackBehaviourScreen() {
       const duration = t2 - t1;
       const speed = duration > 0 ? distance / duration : 0;
       const direction = Math.atan2(dy, dx);
-      const acceleration = duration > 0 ? speed / duration : 0;
+      if(direction < 0) direction += 360;
+      const acceleration = duration > 0 ? (1e5)*speed / duration : 0;
 
       if (Math.abs(dx) > 50) {
         // Prevent swipe if answer is empty
