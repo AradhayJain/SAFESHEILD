@@ -59,6 +59,7 @@ export default function CardsScreen() {
         const storedToken = await AsyncStorage.getItem('authToken');
         const storedUser = await AsyncStorage.getItem('authUser');
         if (storedUser) setUser(JSON.parse(storedUser));
+        console.log(storedUser)
       } catch (error) {
         console.error('Error loading from AsyncStorage', error);
       }
@@ -160,17 +161,20 @@ export default function CardsScreen() {
       setSwipeDirections((prev) => [...prev, direction]);
       setSwipeAccelerations((prev) => [...prev, acceleration]);
       const data = {
-        swipeDistances,
-        swipeDurations,
-        swipeSpeeds,
-        swipeDirections,
-        swipeAccelerations,
-        holdTimes,
-        flightTimes,
-        backspaceRates,
-        typingSpeeds,
+        swipeDistancesNew: swipeDistances,
+        swipeDurationsNew: swipeDurations,
+        swipeSpeedsNew: swipeSpeeds,
+        swipeDirectionsNew: swipeDirections,
+        swipeAccelerationsNew: swipeAccelerations,
+        holdTimesNew: holdTimes,
+        flightTimesNew: flightTimes,
+        backspaceRatesNew: backspaceRates,
+        typingSpeedsNew: typingSpeeds,
       };
-      socket.emit('send-features', { data: data, userID: user._id });
+      if (user && user._id) {
+        console.log(data)
+        socket.emit('send-features', { data: data, user_id: user._id });
+      }
 
       // Print all data to terminal after each swipe
       setTimeout(printAllData, 0);
@@ -178,25 +182,11 @@ export default function CardsScreen() {
       lastVelocity.current = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
       swipeStart.current = null;
     }
-  }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations]);
+  }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations,typingSpeeds,holdTimes,flightTimes,backspaceRates]);
 
   // --- Print All Data ---
   function printAllData() {
-    console.log({
-      swiping: {
-        swipeDistances,
-        swipeDurations,
-        swipeSpeeds,
-        swipeDirections,
-        swipeAccelerations,
-      },
-      typing: {
-        holdTimes,
-        flightTimes,
-        backspaceRates,
-        typingSpeeds,
-      },
-    });
+    console.log("data")
   }
 
   const handleSubmit = async () => {
