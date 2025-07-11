@@ -74,9 +74,7 @@ export default function TrackBehaviourScreen() {
     keyDownTime.current = now;
 
     // Detect backspace
-    if (
-      answers[current].length > text.length
-    ) {
+    if (answers[current].length > text.length) {
       backspaceCount.current[current] = backspaceCount.current[current] + 1;
     } else {
       totalKeys.current[current] = totalKeys.current[current] + 1;
@@ -88,30 +86,32 @@ export default function TrackBehaviourScreen() {
       return updated;
     });
 
-    // Simulate keyUp (immediately after keyDown for mobile)
-    const upNow = Date.now();
-    if (keyDownTime.current !== null) {
-      setHoldTimes(prev => [...prev, upNow - keyDownTime.current!]);
-      lastKeyUpTime.current = upNow;
-    }
+    // Simulate keyUp after a short delay
+    setTimeout(() => {
+      const upNow = Date.now();
+      if (keyDownTime.current !== null) {
+        setHoldTimes(prev => [...prev, upNow - keyDownTime.current!]);
+        lastKeyUpTime.current = upNow;
+      }
 
-    // Typing speed: total keys / (lastKeyUp - firstKeyDown) in chars/sec
-    if (firstKeyDownTime.current && lastKeyUpTime.current && totalKeys.current[current] > 0) {
-      setTypingSpeeds(prev => {
-        const updated = [...prev];
-        updated[current] = totalKeys.current[current] / ((lastKeyUpTime.current! - firstKeyDownTime.current!) / 1000);
-        return updated;
-      });
-    }
+      // Typing speed: total keys / (lastKeyUp - firstKeyDown) in chars/sec
+      if (firstKeyDownTime.current && lastKeyUpTime.current && totalKeys.current[current] > 0) {
+        setTypingSpeeds(prev => {
+          const updated = [...prev];
+          updated[current] = totalKeys.current[current] / ((lastKeyUpTime.current! - firstKeyDownTime.current!) / 1000);
+          return updated;
+        });
+      }
 
-    // Backspace rate: # of ⌫ presses / total keys
-    if (totalKeys.current[current] > 0) {
-      setBackspaceRates(prev => {
-        const updated = [...prev];
-        updated[current] = backspaceCount.current[current] / totalKeys.current[current];
-        return updated;
-      });
-    }
+      // Backspace rate: # of ⌫ presses / total keys
+      if (totalKeys.current[current] > 0) {
+        setBackspaceRates(prev => {
+          const updated = [...prev];
+          updated[current] = backspaceCount.current[current] / totalKeys.current[current];
+          return updated;
+        });
+      }
+    }, 30); // 30ms delay for more realistic hold time
   };
 
   const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
