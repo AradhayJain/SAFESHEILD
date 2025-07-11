@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PanGestureHandler, GestureHandlerRootView, State as GestureState } from 'react-native-gesture-handler';
-import { useSocket } from './SocketContext';
+import { useSocket } from '../context/SocketContext';
 
 // --- Typing Data Types ---
 type TypingField = 'accountNumber' | 'cardType' | 'cardNo' | 'pin' | 'cvv' | 'expiry';

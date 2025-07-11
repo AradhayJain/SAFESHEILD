@@ -12,28 +12,30 @@ export const predictWithWebSocket = async (data, userId) => {
   };
 
   if (
-    data.swipeDistances || data.swipeDurations || data.swipeSpeeds ||
-    data.swipeDirections || data.swipeAccelerations
+    data.swipeDistancesNew || data.swipeDurationsNew || data.swipeSpeedsNew ||
+    data.swipeDirectionsNew || data.swipeAccelerationsNew
   ) {
     requestData.data.swiping = {
-      ...(data.swipeDistances && { swipeDistances: data.swipeDistances }),
-      ...(data.swipeDurations && { swipeDurations: data.swipeDurations }),
-      ...(data.swipeSpeeds && { swipeSpeeds: data.swipeSpeeds }),
-      ...(data.swipeDirections && { swipeDirections: data.swipeDirections }),
-      ...(data.swipeAccelerations && { swipeAccelerations: data.swipeAccelerations }),
+      ...(data.swipeDistancesNew && { swipeDistances: data.swipeDistancesNew }),
+      ...(data.swipeDurationsNew && { swipeDurations: data.swipeDurationsNew }),
+      ...(data.swipeSpeedsNew && { swipeSpeeds: data.swipeSpeedsNew }),
+      ...(data.swipeDirectionsNew && { swipeDirections: data.swipeDirectionsNew }),
+      ...(data.swipeAccelerationsNew && { swipeAccelerations: data.swipeAccelerationsNew }),
     };
   }
-
+  
   if (
-    data.holdTimes || data.flightTimes || data.backspaceRates || data.typingSpeeds
+    data.holdTimesNew || data.flightTimesNew || data.backspaceRatesNew || data.typingSpeedsNew
   ) {
     requestData.data.typing = {
-      ...(data.holdTimes && { keyHoldTimes: data.holdTimes }),
-      ...(data.flightTimes && { keyFlightTimes: data.flightTimes }),
-      ...(data.backspaceRates && { backspaceRates: data.backspaceRates }),
-      ...(data.typingSpeeds && { typingSpeeds: data.typingSpeeds }),
+      ...(data.holdTimesNew && { keyHoldTimes: data.holdTimesNew }),
+      ...(data.flightTimesNew && { keyFlightTimes: data.flightTimesNew }),
+      ...(data.backspaceRatesNew && { backspaceRates: data.backspaceRatesNew }),
+      ...(data.typingSpeedsNew && { typingSpeeds: data.typingSpeedsNew }),
     };
   }
+  console.log("📤 Sending to prediction WS:", requestData);
+
 
   const result = await new Promise((resolve, reject) => {
     ws.onopen = () => {
@@ -62,47 +64,38 @@ export const predictWithWebSocket = async (data, userId) => {
   
 
 export const sendData = async (req, res) => {
-    const userId = 8;
+    
     console.log("added")
   
-    const {
-        swipeDistances,
-        swipeDurations,
-        swipeSpeeds,
-        swipeDirections,
-        swipeAccelerations,
-        holdTimes,
-        flightTimes,
-        backspaceRates,
-        typingSpeeds,      
-    } = req.body;
+    const {userId,data2} = req.body;
   
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized: No user ID found." });
     }
   
-    const data = {
+    const data1 = {
       user_id: userId,
       data: {
         swiping: {
-          swipeDistances,
-          swipeDurations,
-          swipeSpeeds,
-          swipeDirections,
-          swipeAccelerations,
+          swipeDistances: data2.swipeDistances,
+          swipeDurations: data2.swipeDurations,
+          swipeSpeeds: data2.swipeSpeeds,
+          swipeDirections: data2.swipeDirections,
+          swipeAccelerations: data2.swipeAccelerations,
         },
         typing: {
-          holdTimes,
-          flightTimes,
-          backspaceRates,
-          typingSpeeds, 
-        }
-      }
+          holdTimes: data2.holdTimes,
+          flightTimes: data2.flightTimes,
+          backspaceRates: data2.backspaceRates,
+          typingSpeeds: data2.typingSpeeds,
+        },
+      },
     };
-    console.log(data)
+    
+    console.log(data1)
   
     try {
-      const response = await axios.post('http://localhost:5000/train_model', data);
+      const response = await axios.post('http://localhost:5000/train_model', data1);
       res.status(200).json({
         message: 'Data sent successfully to prediction server.',
         response:response.data

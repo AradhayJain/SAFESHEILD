@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from '
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { GestureHandlerRootView, PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
-import { useSocket } from './SocketContext';
+import { useSocket } from '../context/SocketContext';
 
 export default function MainScreen() {
   const router = useRouter();
@@ -73,15 +73,25 @@ export default function MainScreen() {
         swipeDirections: [...swipeDirections, direction],
         swipeAccelerations: [...swipeAccelerations, acceleration],
       });
+      const swipeDistancesNew = [...swipeDistances, distance];
+      const swipeDurationsNew = [...swipeDurations, duration];
+      const swipeSpeedsNew = [...swipeSpeeds, speed];
+      const swipeDirectionsNew = [...swipeDirections, direction];
+      const swipeAccelerationsNew = [...swipeAccelerations, acceleration];
       const data = {
-      swipeDistances,
-      swipeDurations,
-      swipeSpeeds,
-      swipeDirections,
-      swipeAccelerations
-  };
-
-  socket.emit('send-features', {data:data,userID:user._id});
+        swipeDistancesNew,
+        swipeDurationsNew,
+        swipeSpeedsNew,
+        swipeDirectionsNew,
+        swipeAccelerationsNew
+      };
+      
+      if (user && user._id) {
+        console.log(user)
+        console.log(data)
+    socket.emit('send-features', { data, user_id: user._id });
+  }
+  
 
       lastVelocity.current = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
       swipeStart.current = null;

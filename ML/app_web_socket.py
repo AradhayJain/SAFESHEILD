@@ -10,8 +10,11 @@ async def predict(websocket: WebSocket):
     await websocket.accept()
     while True:
         try:
+            
             data = await websocket.receive_text()
             message = json.loads(data)
+            print("📥 Received:", message)
+
             user_id = message.get("user_id")
             features = message.get("data")
 

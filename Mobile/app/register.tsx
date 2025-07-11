@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView,
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -40,14 +42,18 @@ export default function RegisterScreen() {
       Alert.alert('Error', 'Passwords do not match.');
       return;
     }
+    console.log(password)
     try {
-      const response = await axios.post('http://localhost:9001/api/users/register', {
+      const response = await axios.post('http://192.168.1.6:9001/api/users/register', {
         username,
         AccountNumber,
         PhoneNumber,
         password,
       });
+      console.log(response)
       if (response.data) {
+        // await AsyncStorage.setItem('authToken', token);
+        await AsyncStorage.setItem('authUser', JSON.stringify(response.data));
         Alert.alert(
           'Success',
           'Successfully registered! Please proceed to the next step.',
@@ -63,7 +69,8 @@ export default function RegisterScreen() {
         Alert.alert('Registration Failed', response.data?.message || 'Please try again.');
       }
     } catch (error: any) {
-      Alert.alert('Error!', error.response?.data?.message || 'Something went wrong');
+      console.log(error)
+      Alert.alert(error || 'Something went wrong');
     }
   };
 

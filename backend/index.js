@@ -50,7 +50,7 @@ io.on("connection", (socket) => {
     const userId = data.user_id; // You can also pass this via auth/session
 
     try {
-      const result = await predictWithWebSocket(data, userId);
+      const result = await predictWithWebSocket(data.data, userId);
       socket.emit("prediction-result", result);
     } catch (err) {
       socket.emit("prediction-error", { error: err.message });

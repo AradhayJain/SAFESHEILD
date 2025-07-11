@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { GestureHandlerRootView, PanGestureHandler, PanGestureHandlerGestureEvent } from 'react-native-gesture-handler';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 const questions = [
     "Describe yourself in one paragraph.",
@@ -16,6 +18,7 @@ export default function TrackBehaviourScreen() {
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState(Array(questions.length).fill(''));
   const [swipeCount, setSwipeCount] = useState(Array(questions.length).fill(0));
+  const [user, setUser] = useState<any>(null);
 
   // --- Gesture/Swipe Data Arrays ---
   // Store all data in 1D arrays (not per question)
@@ -42,6 +45,20 @@ export default function TrackBehaviourScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   // Typing tracking (simulate keyDown/keyUp for mobile)
+  useEffect(() => {
+    const loadStoredData = async () => {
+      try {
+        // const storedToken = await AsyncStorage.getItem('authToken');
+        const storedUser = await AsyncStorage.getItem('authUser');
+        // if (storedToken) setToken(storedToken);
+        if (storedUser) setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Error loading from AsyncStorage', error);
+      }
+    };
+
+    loadStoredData();
+  }, []);
   const handleTyping = (text: string) => {
     // Simulate keyDown
     const now = Date.now();
@@ -177,7 +194,7 @@ export default function TrackBehaviourScreen() {
   // Submit handler
   const handleSubmit = async () => {
     try {
-      const { data } = await axios.post('http://localhost:9001/api/data/getData', {
+      const { data } = await axios.post('http://192.168.1.6:9001/api/data/getData', {userId:user._id,data2:{
         swipeDistances,
         swipeDurations,
         swipeSpeeds,
@@ -187,7 +204,7 @@ export default function TrackBehaviourScreen() {
         flightTimes,
         backspaceRates,
         typingSpeeds,
-      });
+      }});
       if(data){console.log('Data received:', data);}
       Alert.alert('Data submitted successfully!');
       router.replace('/login');
