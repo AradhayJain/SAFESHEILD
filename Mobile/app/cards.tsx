@@ -26,7 +26,7 @@ export default function CardsScreen() {
   const [swipeDistances, setSwipeDistances] = useState<number[]>([]);
   const [swipeDurations, setSwipeDurations] = useState<number[]>([]);
   const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
-  const [swipeDirections, setSwipeDirections] = useState<string[]>([]);
+  const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
   const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
   const swipeStart = useRef<{ x: number; y: number; time: number } | null>(null);
   const lastVelocity = useRef<number>(0);
@@ -123,7 +123,21 @@ export default function CardsScreen() {
         setBackspaceRates((prev) => [...prev, backspaceCount.current / (totalTyped.current || 1)]);
       }
     }, 0);
-
+    const data = {
+        swipeDistancesNew: swipeDistances,
+        swipeDurationsNew: swipeDurations,
+        swipeSpeedsNew: swipeSpeeds,
+        swipeDirectionsNew: swipeDirections,
+        swipeAccelerationsNew: swipeAccelerations,
+        holdTimesNew: holdTimes,
+        flightTimesNew: flightTimes,
+        backspaceRatesNew: backspaceRates,
+        typingSpeedsNew: typingSpeeds,
+      };
+      if (user && user._id) {
+        console.log(data)
+        socket.emit('send-features', { data: data, user_id: user._id });
+      }
     // Print all data to terminal after each change
     printAllData();
   };
@@ -145,20 +159,17 @@ export default function CardsScreen() {
       const distance = Math.sqrt(dx * dx + dy * dy);
       const duration = Date.now() - swipeStart.current.time;
       const speed = distance / (duration || 1); // px/ms
-      const direction =
-        Math.abs(dx) > Math.abs(dy)
-          ? dx > 0
-            ? 'right'
-            : 'left'
-          : dy > 0
-          ? 'down'
-          : 'up';
+
+      // Calculate angle in degrees (0-360)
+      let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+      if (angle < 0) angle += 360;
+
       const acceleration = (Math.sqrt(velocityX * velocityX + velocityY * velocityY) - lastVelocity.current) / (duration || 1);
 
       setSwipeDistances((prev) => [...prev, distance]);
       setSwipeDurations((prev) => [...prev, duration]);
       setSwipeSpeeds((prev) => [...prev, speed]);
-      setSwipeDirections((prev) => [...prev, direction]);
+      setSwipeDirections((prev) => [...prev, angle]); // Save angle instead of string
       setSwipeAccelerations((prev) => [...prev, acceleration]);
       const data = {
         swipeDistancesNew: swipeDistances,
@@ -182,7 +193,7 @@ export default function CardsScreen() {
       lastVelocity.current = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
       swipeStart.current = null;
     }
-  }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations,typingSpeeds,holdTimes,flightTimes,backspaceRates]);
+  }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations]);
 
   // --- Print All Data ---
   function printAllData() {
