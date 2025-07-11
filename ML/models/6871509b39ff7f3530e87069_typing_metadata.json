@@ -1,0 +1,19 @@
+{
+  "user_id": "6871509b39ff7f3530e87069",
+  "training_date": "2025-07-11T23:28:46.458085",
+  "total_samples": 37,
+  "training_samples": 24,
+  "validation_samples": 6,
+  "train_outlier_rate": 0.125,
+  "val_outlier_rate": 0.1667,
+  "contamination": 0.1,
+  "feature_columns": [
+    "hold_mean",
+    "hold_std",
+    "flight_mean",
+    "flight_std",
+    "backspace_rate",
+    "typing_speed"
+  ],
+  "training_type": "onboarding_dataframe"
+}

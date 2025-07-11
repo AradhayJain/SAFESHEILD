@@ -45,6 +45,7 @@ export const predictWithWebSocket = async (data, userId) => {
     ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data);
+        console.log(parsed.result.predictions)
         resolve(parsed);
       } catch (err) {
         reject(new Error("Invalid response from prediction server"));
