@@ -145,7 +145,7 @@ export default function CardsScreen() {
   // --- Swipe Handler ---
   const onGestureEvent = React.useCallback((event: any) => {
     // No-op, required for PanGestureHandler
-  }, []);
+  }, [holdTimes,flightTimes,backspaceRates,typingSpeeds]);
 
   const onHandlerStateChange = React.useCallback((event: any) => {
     const { state, velocityX, velocityY, absoluteX, absoluteY } = event.nativeEvent;
