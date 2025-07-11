@@ -142,7 +142,7 @@ export default function TrackBehaviourScreen() {
       const distance = Math.sqrt(dx * dx + dy * dy);
       const duration = t2 - t1;
       const speed = duration > 0 ? distance / duration : 0;
-      const direction = Math.atan2(dy, dx);
+      let direction = Math.atan2(dy, dx);
       if(direction < 0) direction += 360;
       const acceleration = duration > 0 ? (1e5)*speed / duration : 0;
 
