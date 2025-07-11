@@ -16,12 +16,11 @@ export default function MainScreen() {
   const [swipeDistances, setSwipeDistances] = useState<number[]>([]);
   const [swipeDurations, setSwipeDurations] = useState<number[]>([]);
   const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
-  const [swipeDirections, setSwipeDirections] = useState<string[]>([]);
+  const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
   const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
 
   // For tracking swipe
   const swipeStart = React.useRef<{ x: number; y: number; time: number } | null>(null);
-  const lastVelocity = React.useRef<number>(0);
   useEffect(() => {
     // Receive messages from server
     socket.on('prediction-result', (msg: string) => {
@@ -38,26 +37,19 @@ export default function MainScreen() {
   }, []);
 
   const onHandlerStateChange = React.useCallback((event: import('react-native-gesture-handler').PanGestureHandlerStateChangeEvent) => {
-    const { state, velocityX, velocityY, absoluteX, absoluteY } = event.nativeEvent;
+    const { state, absoluteX, absoluteY } = event.nativeEvent;
     if (state === GestureState.BEGAN) {
       swipeStart.current = { x: absoluteX, y: absoluteY, time: Date.now() };
-      lastVelocity.current = 0;
     }
     if (state === GestureState.END && swipeStart.current) {
       const dx = absoluteX - swipeStart.current.x;
       const dy = absoluteY - swipeStart.current.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const duration = Date.now() - swipeStart.current.time;
-      const speed = distance / (duration || 1); // px/ms
-      const direction =
-        Math.abs(dx) > Math.abs(dy)
-          ? dx > 0
-            ? 'right'
-            : 'left'
-          : dy > 0
-          ? 'down'
-          : 'up';
-      const acceleration = (Math.sqrt(velocityX * velocityX + velocityY * velocityY) - lastVelocity.current) / (duration || 1);
+      const speed = duration > 0 ? distance / duration : 0;
+      let direction = Math.atan2(dy, dx) * (180 / Math.PI);
+      if(direction < 0) direction += 360;
+      const acceleration = duration > 0 ? (1e5)*speed / duration : 0;
 
       setSwipeDistances((prev) => [...prev, distance]);
       setSwipeDurations((prev) => [...prev, duration]);
@@ -92,8 +84,6 @@ export default function MainScreen() {
     socket.emit('send-features', { data, user_id: user._id });
   }
   
-
-      lastVelocity.current = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
       swipeStart.current = null;
     }
   }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations]);
