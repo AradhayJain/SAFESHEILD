@@ -1,66 +1,105 @@
 import WebSocket from 'ws';
 import axios from 'axios';
 
-export const predictWithWebSocket = async (data, userId) => {
+let ws = null;
+
+export const predictWithWebSocket = (data, userId, onMessageCallback, onErrorCallback) => {
   if (!userId) throw new Error("No user ID provided");
 
-  const ws = new WebSocket("ws://localhost:8000/predict");
+  if (!ws || ws.readyState === WebSocket.CLOSED) {
+    ws = new WebSocket("ws://localhost:8000/predict");
 
-  const requestData = {
-    user_id: userId,
-    data: {}
-  };
-
-  if (
-    data.swipeDistancesNew || data.swipeDurationsNew || data.swipeSpeedsNew ||
-    data.swipeDirectionsNew || data.swipeAccelerationsNew
-  ) {
-    requestData.data.swiping = {
-      ...(data.swipeDistancesNew && { swipeDistances: data.swipeDistancesNew }),
-      ...(data.swipeDurationsNew && { swipeDurations: data.swipeDurationsNew }),
-      ...(data.swipeSpeedsNew && { swipeSpeeds: data.swipeSpeedsNew }),
-      ...(data.swipeDirectionsNew && { swipeDirections: data.swipeDirectionsNew }),
-      ...(data.swipeAccelerationsNew && { swipeAccelerations: data.swipeAccelerationsNew }),
-    };
-  }
-  
-  if (
-    data.holdTimesNew || data.flightTimesNew || data.backspaceRatesNew || data.typingSpeedsNew
-  ) {
-    requestData.data.typing = {
-      ...(data.holdTimesNew && { keyHoldTimes: data.holdTimesNew }),
-      ...(data.flightTimesNew && { keyFlightTimes: data.flightTimesNew }),
-      ...(data.backspaceRatesNew && { backspaceRates: data.backspaceRatesNew }),
-      ...(data.typingSpeedsNew && { typingSpeeds: data.typingSpeedsNew }),
-    };
-  }
-  console.log("📤 Sending to prediction WS:", requestData);
-
-
-  const result = await new Promise((resolve, reject) => {
     ws.onopen = () => {
+      console.log("✅ WebSocket connected");
+
+      const requestData = {
+        user_id: userId,
+        data: {}
+      };
+
+      if (
+        data.swipeDistancesNew || data.swipeDurationsNew || data.swipeSpeedsNew ||
+        data.swipeDirectionsNew || data.swipeAccelerationsNew
+      ) {
+        requestData.data.swiping = {
+          ...(data.swipeDistancesNew && { swipeDistances: data.swipeDistancesNew }),
+          ...(data.swipeDurationsNew && { swipeDurations: data.swipeDurationsNew }),
+          ...(data.swipeSpeedsNew && { swipeSpeeds: data.swipeSpeedsNew }),
+          ...(data.swipeDirectionsNew && { swipeDirections: data.swipeDirectionsNew }),
+          ...(data.swipeAccelerationsNew && { swipeAccelerations: data.swipeAccelerationsNew }),
+        };
+      }
+
+      if (
+        data.holdTimesNew || data.flightTimesNew || data.backspaceRatesNew || data.typingSpeedsNew
+      ) {
+        requestData.data.typing = {
+          ...(data.holdTimesNew && { HoldTimes: data.holdTimesNew }),
+          ...(data.flightTimesNew && { FlightTimes: data.flightTimesNew }),
+          ...(data.backspaceRatesNew && { backspaceRates: data.backspaceRatesNew }),
+          ...(data.typingSpeedsNew && { typingSpeeds: data.typingSpeedsNew }),
+        };
+      }
+
+      console.log("📤 Sending to prediction WS:", requestData);
       ws.send(JSON.stringify(requestData));
     };
 
     ws.onmessage = (event) => {
       try {
         const parsed = JSON.parse(event.data);
-        console.log(parsed.result.predictions)
-        resolve(parsed);
+        console.log("📥 Received:", parsed.result.predictions);
+        if (onMessageCallback) onMessageCallback(parsed.result.predictions);
       } catch (err) {
-        reject(new Error("Invalid response from prediction server"));
-      } finally {
-        ws.close();
+        console.error("❌ Failed to parse message:", err);
+        if (onErrorCallback) onErrorCallback(err);
       }
     };
 
     ws.onerror = (err) => {
-      reject(new Error(`WebSocket connection error: ${err.message}`));
+      console.error("❌ WebSocket error:", err.message);
+      if (onErrorCallback) onErrorCallback(err);
     };
-  });
 
-  return result;
+    ws.onclose = () => {
+      console.log("🔌 WebSocket connection closed");
+    };
+  } else if (ws.readyState === WebSocket.OPEN) {
+    // If already open, send the new data directly
+    const requestData = {
+      user_id: userId,
+      data: {}
+    };
+
+    if (
+      data.swipeDistancesNew || data.swipeDurationsNew || data.swipeSpeedsNew ||
+      data.swipeDirectionsNew || data.swipeAccelerationsNew
+    ) {
+      requestData.data.swiping = {
+        ...(data.swipeDistancesNew && { swipeDistances: data.swipeDistancesNew }),
+        ...(data.swipeDurationsNew && { swipeDurations: data.swipeDurationsNew }),
+        ...(data.swipeSpeedsNew && { swipeSpeeds: data.swipeSpeedsNew }),
+        ...(data.swipeDirectionsNew && { swipeDirections: data.swipeDirectionsNew }),
+        ...(data.swipeAccelerationsNew && { swipeAccelerations: data.swipeAccelerationsNew }),
+      };
+    }
+
+    if (
+      data.holdTimesNew || data.flightTimesNew || data.backspaceRatesNew || data.typingSpeedsNew
+    ) {
+      requestData.data.typing = {
+        ...(data.holdTimesNew && { HoldTimes: data.holdTimesNew }),
+        ...(data.flightTimesNew && { FlightTimes: data.flightTimesNew }),
+        ...(data.backspaceRatesNew && { backspaceRates: data.backspaceRatesNew }),
+        ...(data.typingSpeedsNew && { typingSpeeds: data.typingSpeedsNew }),
+      };
+    }
+
+    console.log("📤 Sending to prediction WS (reused socket):", requestData);
+    ws.send(JSON.stringify(requestData));
+  }
 };
+
 
   
 

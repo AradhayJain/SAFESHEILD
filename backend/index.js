@@ -49,12 +49,16 @@ io.on("connection", (socket) => {
   socket.on("send-features", async (data) => {
     const userId = data.user_id; // You can also pass this via auth/session
 
-    try {
-      const result = await predictWithWebSocket(data.data, userId);
-      socket.emit("prediction-result", result);
-    } catch (err) {
-      socket.emit("prediction-error", { error: err.message });
-    }
+    predictWithWebSocket(
+      data.data,
+      userId,
+      (result) => {
+        socket.emit("prediction-result", result);
+      },
+      (err) => {
+        socket.emit("prediction-error", { error: err.message });
+      }
+    );
   });
 
   socket.on("disconnect", () => {

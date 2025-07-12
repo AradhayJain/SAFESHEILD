@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { GestureHandlerRootView, PanGestureHandler, State as GestureState } from 'react-native-gesture-handler';
 import { useSocket } from '../context/SocketContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 export default function MainScreen() {
   const router = useRouter();
@@ -21,16 +23,55 @@ export default function MainScreen() {
 
   // For tracking swipe
   const swipeStart = React.useRef<{ x: number; y: number; time: number } | null>(null);
-  useEffect(() => {
-    // Receive messages from server
-    socket.on('prediction-result', (msg: string) => {
-      console.log('Received message:', msg);
-    });
+  // useEffect(() => {
+  //   const handlePrediction = (msg: string) => {
+  //     console.log('📨 Received prediction:', msg);
+  //   };
+  
+  //   if (!socket) return;
+  
+  //   const setupListeners = () => {
+  //     socket.off('prediction-result', handlePrediction); // ensure no duplicate
+  //     socket.on('prediction-result', handlePrediction);
+  //   };
+  
+  //   // Attach on first connect
+  //   if (socket.connected) {
+  //     setupListeners();
+  //   }
+  
+  //   // Reattach after reconnects
+  //   socket.on('reconnect', setupListeners);
+  //   socket.on('connect', setupListeners); // also handle delayed connect
+  
+  //   return () => {
+  //     socket.off('prediction-result', handlePrediction);
+  //     socket.off('reconnect', setupListeners);
+  //     socket.off('connect', setupListeners);
+  //   };
+  // }, []);
+
+useFocusEffect(
+  useCallback(() => {
+    const handlePrediction = (msg: string) => {
+      console.log('📨 Received prediction:', msg);
+    };
+
+    if (!socket) return;
+
+    socket.on('prediction-result', handlePrediction);
+    console.log("🔄 Focused MainScreen, socket ID:", socket.id);
 
     return () => {
-      socket.off('prediction-result');
+      socket.off('prediction-result', handlePrediction);
+      console.log("👋 Unfocused MainScreen, removed socket listener");
     };
-  }, [socket]);
+  }, [socket])
+);
+  
+  
+   // <== ❌ DO NOT include `socket` in the dependency array
+  
 
   const onGestureEvent = React.useCallback((event: any) => {
     // No-op, required for PanGestureHandler

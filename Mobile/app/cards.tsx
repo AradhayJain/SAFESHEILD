@@ -23,20 +23,19 @@ export default function CardsScreen() {
   const [user, setUser] = useState<any>(null);
 
   // --- Swipe Data States ---
-  const [swipeDistances, setSwipeDistances] = useState<number[]>([]);
-  const [swipeDurations, setSwipeDurations] = useState<number[]>([]);
-  const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
-  const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
-  const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
+  const [swipeDistancesNew, setSwipeDistancesNew] = useState<number[]>([]);
+  const [swipeDurationsNew, setSwipeDurationsNew] = useState<number[]>([]);
+  const [swipeSpeedsNew, setSwipeSpeedsNew] = useState<number[]>([]);
+  const [swipeDirectionsNew, setSwipeDirectionsNew] = useState<number[]>([]);
+  const [swipeAccelerationsNew, setSwipeAccelerationsNew] = useState<number[]>([]);
   const swipeStart = useRef<{ x: number; y: number; time: number } | null>(null);
 
   // --- Typing Data States ---
-  const [holdTimes, setHoldTimes] = useState<number[]>([]);
-  const [flightTimes, setFlightTimes] = useState<number[]>([]);
-  const [backspaceRates, setBackspaceRates] = useState<number[]>([]);
-  const [typingSpeeds, setTypingSpeeds] = useState<number[]>([]);
+  const [holdTimesNew, setHoldTimesNew] = useState<number[]>([]);
+  const [flightTimesNew, setFlightTimesNew] = useState<number[]>([]);
+  const [backspaceRatesNew, setBackspaceRatesNew] = useState<number[]>([]);
+  const [typingSpeedsNew, setTypingSpeedsNew] = useState<number[]>([]);
 
-  // For tracking typing
   const keyDownTimestamps = useRef<{ [key in TypingField]?: number }>({});
   const lastKeyUpTimestamp = useRef<number | null>(null);
   const lastTypedField = useRef<TypingField | null>(null);
@@ -44,7 +43,6 @@ export default function CardsScreen() {
   const totalTyped = useRef<number>(0);
   const typingStartTime = useRef<number | null>(null);
 
-  // Load cards from AsyncStorage on mount
   useEffect(() => {
     (async () => {
       const stored = await AsyncStorage.getItem('cards');
@@ -55,97 +53,102 @@ export default function CardsScreen() {
   useEffect(() => {
     const loadStoredData = async () => {
       try {
-        const storedToken = await AsyncStorage.getItem('authToken');
         const storedUser = await AsyncStorage.getItem('authUser');
         if (storedUser) setUser(JSON.parse(storedUser));
-        console.log(storedUser)
       } catch (error) {
         console.error('Error loading from AsyncStorage', error);
       }
     };
-
     loadStoredData();
   }, []);
 
   useEffect(() => {
-    // Receive messages from server
     socket.on('prediction-result', (msg: string) => {
       console.log('Received message:', msg);
     });
-
     return () => {
       socket.off('prediction-result');
     };
   }, [socket]);
 
-  // Save cards to AsyncStorage whenever cards change
   useEffect(() => {
     AsyncStorage.setItem('cards', JSON.stringify(cards));
   }, [cards]);
 
-  // --- Typing Handler ---
+  const emitFeatureData = () => {
+    if (!user || !user._id) return;
+  
+    const swipePresent = swipeDistancesNew.length > 0;
+    const typingPresent = holdTimesNew.length > 0;
+  
+    if (!swipePresent && !typingPresent) return;
+  
+    const data: any = {
+      user_id: user._id,
+      data: {}
+    };
+  
+    if (swipePresent) {
+      Object.assign(data.data, {
+        swipeDistancesNew,
+        swipeDurationsNew,
+        swipeSpeedsNew,
+        swipeDirectionsNew,
+        swipeAccelerationsNew
+      });
+    }
+  
+    if (typingPresent) {
+      Object.assign(data.data, {
+        holdTimesNew,
+        flightTimesNew,
+        backspaceRatesNew,
+        typingSpeedsNew
+      });
+    }
+  
+    console.log("📤 Sending features:", data);
+    socket.emit('send-features', data);
+  };
+  
+
   const handleTyping = (text: string, prevText: string, setText: (v: string) => void, field: TypingField) => {
     const now = Date.now();
-
-    // Typing speed
     if (typingStartTime.current === null) typingStartTime.current = now;
     totalTyped.current += Math.abs(text.length - prevText.length);
 
-    // Hold time (simulate as time between prev and now for each change)
     if (keyDownTimestamps.current[field]) {
       const hold = now - keyDownTimestamps.current[field]!;
-      setHoldTimes((prev) => [...prev, hold]);
+      setHoldTimesNew((prev) => [...prev, hold]);
     }
     keyDownTimestamps.current[field] = now;
 
-    // Flight time (time between last key up and this key down)
     if (lastKeyUpTimestamp.current && lastTypedField.current !== null) {
       const flight = now - lastKeyUpTimestamp.current;
-      setFlightTimes((prev) => [...prev, flight]);
+      setFlightTimesNew((prev) => [...prev, flight]);
     }
     lastTypedField.current = field;
 
-    // Backspace rate
     if (text.length < prevText.length) {
       backspaceCount.current += 1;
     }
 
     setText(text);
 
-    // After a short delay, treat as key up
     setTimeout(() => {
       lastKeyUpTimestamp.current = Date.now();
-      // After each key up, update typing speed and backspace rate
       const elapsed = lastKeyUpTimestamp.current - (typingStartTime.current || lastKeyUpTimestamp.current);
       if (elapsed > 0) {
         const wpm = (totalTyped.current * 60) / (5 * (elapsed / 1000));
-        setTypingSpeeds((prev) => [...prev, wpm]); 
-        setBackspaceRates((prev) => [...prev, backspaceCount.current / (totalTyped.current || 1)]);
+        setTypingSpeedsNew((prev) => [...prev, wpm]);
+        setBackspaceRatesNew((prev) => [...prev, backspaceCount.current / (totalTyped.current || 1)]);
       }
     }, 0);
-    const data = {
-        swipeDistancesNew: swipeDistances,
-        swipeDurationsNew: swipeDurations,
-        swipeSpeedsNew: swipeSpeeds,
-        swipeDirectionsNew: swipeDirections,
-        swipeAccelerationsNew: swipeAccelerations,
-        holdTimesNew: holdTimes,
-        flightTimesNew: flightTimes,
-        backspaceRatesNew: backspaceRates,
-        typingSpeedsNew: typingSpeeds,
-      };
-      if (user && user._id) {
-        console.log(data)
-        socket.emit('send-features', { data: data, user_id: user._id });
-      }
-    // Print all data to terminal after each change
-    printAllData();
+
+    emitFeatureData();
   };
 
-  // --- Swipe Handler ---
-  const onGestureEvent = React.useCallback((event: any) => {
-    // No-op, required for PanGestureHandler
-  }, [holdTimes,flightTimes,backspaceRates,typingSpeeds]);
+  const onGestureEvent = React.useCallback(() => {}, []);
 
   const onHandlerStateChange = React.useCallback((event: any) => {
     const { state, absoluteX, absoluteY } = event.nativeEvent;
@@ -157,61 +160,31 @@ export default function CardsScreen() {
       const dy = absoluteY - swipeStart.current.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const duration = Date.now() - swipeStart.current.time;
-      const speed = duration > 0 ? distance / duration : 0; // px/ms
+      const speed = duration > 0 ? distance / duration : 0;
 
-      // Calculate angle in degrees (0-360)
       let angle = Math.atan2(dy, dx) * (180 / Math.PI);
       if (angle < 0) angle += 360;
 
-      const acceleration = duration > 0 ? (1e5)*speed / duration : 0;
+      const acceleration = duration > 0 ? (1e5) * speed / duration : 0;
 
-      setSwipeDistances((prev) => [...prev, distance]);
-      setSwipeDurations((prev) => [...prev, duration]);
-      setSwipeSpeeds((prev) => [...prev, speed]);
-      setSwipeDirections((prev) => [...prev, angle]); // Save angle instead of string
-      setSwipeAccelerations((prev) => [...prev, acceleration]);
-      const data = {
-        swipeDistancesNew: swipeDistances,
-        swipeDurationsNew: swipeDurations,
-        swipeSpeedsNew: swipeSpeeds,
-        swipeDirectionsNew: swipeDirections,
-        swipeAccelerationsNew: swipeAccelerations,
-        holdTimesNew: holdTimes,
-        flightTimesNew: flightTimes,
-        backspaceRatesNew: backspaceRates,
-        typingSpeedsNew: typingSpeeds,
-      };
-      if (user && user._id) {
-        console.log(data)
-        socket.emit('send-features', { data: data, user_id: user._id });
-      }
+      setSwipeDistancesNew((prev) => [...prev, distance]);
+      setSwipeDurationsNew((prev) => [...prev, duration]);
+      setSwipeSpeedsNew((prev) => [...prev, speed]);
+      setSwipeDirectionsNew((prev) => [...prev, angle]);
+      setSwipeAccelerationsNew((prev) => [...prev, acceleration]);
 
-      // Print all data to terminal after each swipe
-      setTimeout(printAllData, 0);
-
+      setTimeout(emitFeatureData, 0);
       swipeStart.current = null;
+      emitFeatureData();
     }
-  }, [swipeDistances, swipeDurations, swipeSpeeds, swipeDirections, swipeAccelerations]);
-
-  // --- Print All Data ---
-  function printAllData() {
-    console.log("data")
-  }
+  }, [swipeDistancesNew, swipeDurationsNew, swipeSpeedsNew, swipeDirectionsNew, swipeAccelerationsNew]);
 
   const handleSubmit = async () => {
     if (!accountNumber || !cardType || !cardNo) {
       Alert.alert('Error', 'Please fill all required fields.');
       return;
     }
-    setCards([
-      ...cards,
-      {
-        accountNumber,
-        cardType,
-        cardNo,
-        expiry,
-      },
-    ]);
+    setCards([...cards, { accountNumber, cardType, cardNo, expiry }]);
     Alert.alert('Success', 'Card has been added successfully!');
     setAccountNumber('');
     setCardType('');
