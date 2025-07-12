@@ -45,7 +45,7 @@ class SwipeModelTrainer:
         if not (0 <= df['speed_mean'].min() and df['speed_mean'].max() <= 10):
             logger.warning(f"Unusual speed_mean range: {df['speed_mean'].min()}-{df['speed_mean'].max()}")
         
-        if not (0 <= df['direction_mean'].min() and df['direction_mean'].max() <= 2*np.pi):
+        if not (0 <= df['direction_mean'].min() and df['direction_mean'].max() <= 360):
             logger.warning(f"Unusual direction_mean range: {df['direction_mean'].min()}-{df['direction_mean'].max()}")
         
         if not (0 <= df['acceleration_mean'].min() and df['acceleration_mean'].max() <= 1000):
