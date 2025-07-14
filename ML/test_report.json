@@ -1,17 +1,17 @@
 {
-  "timestamp": "2025-07-14T22:25:43.690806",
+  "timestamp": "2025-07-14T22:47:14.499124",
   "tests": {
     "Directory Structure": true,
     "Module Imports": true,
-    "Data Preprocessing": false,
-    "Model Training": false,
+    "Data Preprocessing": true,
+    "Model Training": true,
     "Existing Models": true,
     "Prediction": true
   },
   "summary": {
-    "passed": 4,
+    "passed": 6,
     "total": 6,
-    "percentage": 66.7
+    "percentage": 100.0
   },
   "existing_models": 24
 }

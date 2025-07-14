@@ -49,8 +49,8 @@ class ImprovedDataPreprocessor:
         # Minimum samples needed for reliable statistics
         self.min_samples_for_std = 3
         self.min_samples_for_training = {
-            'swipe': 5,    # Very minimal for swipes
-            'typing': 8    # Minimal for typing
+            'swipe': 2,    # Very minimal for swipes
+            'typing': 3    # Minimal for typing
         }
         
         # Default values when insufficient data
@@ -736,8 +736,8 @@ class ImprovedDataPreprocessor:
         # Specific recommendations
         for modality, data in assessment['modalities'].items():
             if data['readiness'] == 'insufficient':
-                needed = self.min_samples_for_training[modality.replace('ing', '')] - data['sample_count']
-                assessment['recommendations'].append(f"Need {needed} more {modality} samples for training")
+                
+                assessment['recommendations'].append(f"Need more {modality} samples for training")
             elif data['quality'] == 'acceptable':
                 assessment['recommendations'].append(f"Consider collecting more {modality} data for improved accuracy")
         

@@ -30,7 +30,7 @@ export default function TrackBehaviourScreen() {
 
   // --- Typing Data Arrays ---
   const [holdTimes, setHoldTimes] = useState<number[]>([]);
-  const [flightTimes, setFlightTimes] = useState<number[][]>(Array(questions.length).fill([]));
+  const [flightTimes, setFlightTimes] = useState<number[]>([]);
   const [backspaceRates, setBackspaceRates] = useState<number[]>([]);
   const [typingSpeeds, setTypingSpeeds] = useState<number[]>([]);
 
@@ -66,11 +66,8 @@ export default function TrackBehaviourScreen() {
     if (firstKeyDownTime.current === null) firstKeyDownTime.current = now;
     if (keyDownTime.current !== null && lastKeyUpTime.current !== null) {
       // Flight time: time between last key up and this key down
-      setFlightTimes(prev => {
-        const updated = [...prev];
-        updated[current] = [...(updated[current] || []), now - lastKeyUpTime.current!];
-        return updated;
-      });
+      setFlightTimes(prev => [...prev, now - lastKeyUpTime.current!]);
+
     }
     keyDownTime.current = now;
 
