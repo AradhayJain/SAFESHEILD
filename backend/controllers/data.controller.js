@@ -272,7 +272,6 @@ export const sendTrainingData = async (req, res) => {
 
     // Send to training endpoint
     const response = await axios.post('http://localhost:5000/train_model', trainingRequest, {
-      timeout: 30000, // 30 second timeout
       headers: {
         'Content-Type': 'application/json',
       }
@@ -361,7 +360,7 @@ export const sendPredictionData = async (req, res) => {
 
     // Send to prediction endpoint
     const response = await axios.post('http://localhost:8000/predict', predictionRequest, {
-      timeout: 10000, // 10 second timeout for predictions
+      timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
       }
