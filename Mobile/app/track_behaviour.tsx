@@ -20,26 +20,31 @@ export default function TrackBehaviourScreen() {
   const [swipeCount, setSwipeCount] = useState(Array(questions.length).fill(0));
   const [user, setUser] = useState<any>(null);
 
-  // --- Gesture/Swipe Data Arrays ---
-  // Store all data in 1D arrays (not per question)
   const [swipeDistances, setSwipeDistances] = useState<number[]>([]);
   const [swipeDurations, setSwipeDurations] = useState<number[]>([]);
   const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
   const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
   const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
 
-  // --- Typing Data Arrays ---
-  const [holdTimes, setHoldTimes] = useState<number[]>([]);
-  const [flightTimes, setFlightTimes] = useState<number[]>([]);
-  const [backspaceRates, setBackspaceRates] = useState<number[]>([]);
-  const [typingSpeeds, setTypingSpeeds] = useState<number[]>([]);
+  const [typingData, setTypingData] = useState(
+    Array(questions.length).fill(null).map(() => ({
+      keyCount: 0,
+      backspaceCount: 0,
+      startTime: null as null | number,
+      endTime: null as null | number,
+      holdTimes: [] as number[],
+      flightTimes: [] as number[],
+      typingSpeed: 0,
+      wpm: 0,
+      backspaceRate: 0,
+      wordCount: 0,
+    }))
+  );
 
-  // Typing state for tracking
+  
   const keyDownTime = useRef<number | null>(null);
   const lastKeyUpTime = useRef<number | null>(null);
   const firstKeyDownTime = useRef<number | null>(null);
-  const totalKeys = useRef<number[]>(Array(questions.length).fill(0));
-  const backspaceCount = useRef<number[]>(Array(questions.length).fill(0));
 
   const gestureStart = useRef<{x: number, y: number, t: number} | null>(null);
   const scrollRef = useRef<ScrollView>(null);
@@ -60,69 +65,90 @@ export default function TrackBehaviourScreen() {
     loadStoredData();
   }, []);
 
-  const handleTyping = (text: string) => {
-    // Simulate keyDown
-    const now = Date.now();
-    if (firstKeyDownTime.current === null) firstKeyDownTime.current = now;
-    if (keyDownTime.current !== null && lastKeyUpTime.current !== null) {
-      // Flight time: time between last key up and this key down
-      setFlightTimes(prev => [...prev, now - lastKeyUpTime.current!]);
+const handleTyping = (text: string) => {
+  const now = Date.now();
 
-    }
-    keyDownTime.current = now;
+  // If typing started for this question, record the first timestamp
+  if (firstKeyDownTime.current === null) {
+    firstKeyDownTime.current = now;
+  }
 
-    // Detect backspace
-    if (answers[current].length > text.length) {
-      backspaceCount.current[current] = backspaceCount.current[current] + 1;
-    } else {
-      totalKeys.current[current] = totalKeys.current[current] + 1;
-    }
-
-    setAnswers(prev => {
+  // Compute flight time if there was a previous keyUp
+  if (keyDownTime.current !== null && lastKeyUpTime.current !== null) {
+    setTypingData(prev => {
       const updated = [...prev];
-      updated[current] = text;
+      updated[current].flightTimes.push(now - lastKeyUpTime.current!);
       return updated;
     });
+  }
 
-    // Simulate keyUp (immediately after keyDown for mobile)
-    const upNow = Date.now();
-    if (keyDownTime.current !== null) {
-      setTimeout(() => {
-        setHoldTimes(prev => [...prev, Date.now() - keyDownTime.current!]);
-        lastKeyUpTime.current = Date.now();
-      }, 100); // delay in ms, e.g. 100ms
-    }
+  keyDownTime.current = now;
 
-    // Typing speed: total keys / (lastKeyUp - firstKeyDown) in chars/sec
-    if (firstKeyDownTime.current && lastKeyUpTime.current && totalKeys.current[current] > 0) {
-      setTypingSpeeds(prev => {
-        const updated = [...prev];
-        updated[current] = totalKeys.current[current] / ((lastKeyUpTime.current! - firstKeyDownTime.current!) / 1000);
-        return updated;
-      });
-    }
+  // Detect backspace
+  if (answers[current].length > text.length) {
+    setTypingData(prev => {
+      const updated = [...prev];
+      updated[current].backspaceCount++;
+      return updated;
+    });
+  } else {
+    setTypingData(prev => {
+      const updated = [...prev];
+      updated[current].keyCount++;
+      return updated;
+    });
+  }
 
-    // Backspace rate: # of ⌫ presses / total keys
-      if (totalKeys.current[current] > 0) {
-      // Calculate backspace rate
-          const rate = backspaceCount.current[current] / totalKeys.current[current];
-          setBackspaceRates(prev => {
-          const updated = [...prev];
-          updated[current] = rate;
-          return updated;
-      });
+  setAnswers(prev => {
+    const updated = [...prev];
+    updated[current] = text;
+    return updated;
+  });
 
-      setTypingSpeeds(prev => {
-        const updated = [...prev];
-        const elapsedMs = lastKeyUpTime.current! - firstKeyDownTime.current!;
-        const elapsedMinutes = elapsedMs / (1000 * 60);
-        const wpm = (totalKeys.current[current] / 5) / elapsedMinutes;
-        updated[current] = wpm;
-        return updated;
-      });
+  // Simulate keyUp after short delay
+  setTimeout(() => {
+    const holdTime = Date.now() - keyDownTime.current!;
+    lastKeyUpTime.current = Date.now();
 
-    }
-  };
+    setTypingData(prev => {
+      const updated = [...prev];
+      updated[current].holdTimes.push(holdTime);
+      updated[current].endTime = lastKeyUpTime.current!;
+
+      // Compute derived metrics
+      const durationSeconds =
+        (updated[current].endTime! - (updated[current].startTime || firstKeyDownTime.current!)) / 1000;
+
+      const charPerSec = durationSeconds > 0
+        ? updated[current].keyCount / durationSeconds
+        : 0;
+
+      const wpm = durationSeconds > 0
+        ? (updated[current].keyCount / 5) / (durationSeconds / 60)
+        : 0;
+
+      const backspaceRate = updated[current].keyCount > 0
+        ? updated[current].backspaceCount / updated[current].keyCount
+        : 0;
+
+      const wordCount = answers[current].trim().length > 0
+        ? answers[current].trim().split(/\s+/).length
+        : 0;
+
+      updated[current] = {
+        ...updated[current],
+        startTime: updated[current].startTime || firstKeyDownTime.current!,
+        typingSpeed: charPerSec,
+        wpm,
+        backspaceRate,
+        wordCount,
+      };
+
+      return updated;
+    });
+  }, 100);
+};
+
 
   const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {};
 
@@ -174,8 +200,23 @@ export default function TrackBehaviourScreen() {
           keyDownTime.current = null;
           lastKeyUpTime.current = null;
           firstKeyDownTime.current = null;
-          totalKeys.current[current + 1] = 0;
-          backspaceCount.current[current + 1] = 0;
+
+          setTypingData(prev => {
+            const updated = [...prev];
+            updated[current + 1] = {
+              keyCount: 0,
+              backspaceCount: 0,
+              startTime: null,
+              endTime: null,
+              holdTimes: [],
+              flightTimes: [],
+              typingSpeed: 0,
+              wpm: 0,
+              backspaceRate: 0,
+              wordCount: 0,
+            };
+            return updated;
+          });
 
           if (current < questions.length - 1) {
             setCurrent(current + 1);
@@ -195,6 +236,7 @@ export default function TrackBehaviourScreen() {
             }, 0);
           }
         }
+        
       }
       gestureStart.current = null;
     }
@@ -203,6 +245,11 @@ export default function TrackBehaviourScreen() {
   // Submit handler
   const handleSubmit = async () => {
     try {
+      const holdTimes = typingData.flatMap(q => q.holdTimes);
+      const flightTimes = typingData.map(q => q.flightTimes);
+      const backspaceRates = typingData.map(q => q.backspaceRate);
+      const typingSpeeds = typingData.map(q => q.wpm);
+
       const { data } = await axios.post('http://192.168.1.6:9001/api/data/getData', {userId:user._id,data2:{
         swipeDistances,
         swipeDurations,
@@ -214,6 +261,7 @@ export default function TrackBehaviourScreen() {
         backspaceRates,
         typingSpeeds,
       }});
+
       if(data){console.log('Data received:', data);}
       Alert.alert('Data submitted successfully!');
       router.replace('/login');
