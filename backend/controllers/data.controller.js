@@ -34,8 +34,8 @@ export const predictWithWebSocket = (data, userId, onMessageCallback, onErrorCal
         data.holdTimesNew || data.flightTimesNew || data.backspaceRatesNew || data.typingSpeedsNew
       ) {
         requestData.data.typing = {
-          ...(data.holdTimesNew && { HoldTimes: data.holdTimesNew }),
-          ...(data.flightTimesNew && { FlightTimes: data.flightTimesNew }),
+          ...(data.holdTimesNew && { holdTimes: data.holdTimesNew }),
+          ...(data.flightTimesNew && { flightTimes: data.flightTimesNew }),
           ...(data.backspaceRatesNew && { backspaceRates: data.backspaceRatesNew }),
           ...(data.typingSpeedsNew && { typingSpeeds: data.typingSpeedsNew }),
         };
