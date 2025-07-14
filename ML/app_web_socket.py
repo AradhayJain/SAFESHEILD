@@ -1,7 +1,7 @@
 # fastapi_ws.py
 from fastapi import FastAPI, WebSocket
 from fastapi import WebSocketDisconnect
-from utill_predict import predict_with_model
+from ML.util_predict import predict_with_model
 import json
 
 app = FastAPI()
