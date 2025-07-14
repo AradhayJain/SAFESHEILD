@@ -125,7 +125,7 @@ export const sendData = async (req, res) => {
         },
         typing: {
           holdTimes: data2.holdTimes,
-          flightTimes: data2.flightTimes,
+          flightTimes: data2.flightTimesz,
           backspaceRates: data2.backspaceRates,
           typingSpeeds: data2.typingSpeeds,
         },

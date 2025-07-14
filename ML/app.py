@@ -97,6 +97,7 @@ def train_model():
         # Extract required fields
         user_id = data.get("user_id")
         features = data.get("data")
+        print(features)
 
         # Validate required fields
         if not user_id:
@@ -115,6 +116,7 @@ def train_model():
 
         # Log what we received (without sensitive data)
         logger.info(f"🔧 Processing training for user: {user_id}")
+        logger.info(f"📊 Features received: {features}")
         
         if isinstance(features, dict):
             modalities = list(features.keys())
@@ -129,6 +131,8 @@ def train_model():
         # Call the training function
         try:
             model_result = get_model(user_id, features)
+            logger.info(f"✅ Training completed for user: {user_id}")
+
             
             # Check if training was successful
             if isinstance(model_result, dict) and "error" in model_result:
