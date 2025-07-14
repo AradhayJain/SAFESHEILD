@@ -154,6 +154,7 @@ const handleTyping = (text: string) => {
 
   const onHandlerStateChange = (event: PanGestureHandlerGestureEvent) => {
     const { nativeEvent } = event;
+    
     if (nativeEvent.state === 2) { // BEGAN
       gestureStart.current = { x: nativeEvent.x, y: nativeEvent.y, t: Date.now() };
     }
@@ -222,6 +223,11 @@ const handleTyping = (text: string) => {
             setCurrent(current + 1);
           } else {
             // Remove router.replace('/login') here
+            const holdTimes = typingData.flatMap(q => q.holdTimes);
+            const flightTimes = typingData.map(q => q.flightTimes);
+            const backspaceRates = typingData.map(q => q.backspaceRate);
+            const typingSpeeds = typingData.map(q => q.wpm);
+            
             setTimeout(() => {
               console.log('FINAL swipeDistances:', swipeDistances);
               console.log('FINAL swipeDurations:', swipeDurations);
