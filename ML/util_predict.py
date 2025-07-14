@@ -10,8 +10,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 try:
     from swiping.predict_swipe_risk import SwipeRiskPredictor
     from swiping.update_model import SwipeModelUpdater 
-    from typing.predict_typing_risk import TypingRiskPredictor
-    from typing.update_model import TypingModelUpdater
+    from typing_models.predict_typing_risk import TypingRiskPredictor
+    from typing_models.update_model import TypingModelUpdater
     from preprocessing.improved_data_preprocessor import ImprovedDataPreprocessor
 except ImportError as e:
     print(f"Import error in util_predict: {e}")
