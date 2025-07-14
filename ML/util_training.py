@@ -3,17 +3,17 @@ import logging
 import sys
 import os
 
-# Add the current directory to Python path for imports
+# Add the ML directory to Python path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Import the updated model trainers and preprocessor
+# Import the enhanced model trainers and preprocessor with correct paths
 try:
-    # Assuming the enhanced models are in the same directory
-    from model_training import EnhancedTypingModelTrainer, EnhancedSwipeModelTrainer
-    from data_preprocessor import StandardizedDataPreprocessor
+    from swiping.enhanced_swipe_model_trainer import EnhancedSwipeModelTrainer
+    from typing.enhanced_typing_model_trainer import EnhancedTypingModelTrainer
+    from preprocessing.improved_data_preprocessor import ImprovedDataPreprocessor
 except ImportError as e:
     print(f"Import error: {e}")
-    print("Please ensure all required files are in the same directory")
+    print("Please ensure all required files are in the correct ML subdirectories")
     sys.exit(1)
 
 logger = logging.getLogger(__name__)
@@ -24,23 +24,7 @@ def get_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
     
     Args:
         user_id: User identifier
-        data_dict: Raw data from frontend with standardized format:
-        {
-            "swiping": {
-                "swipeDistances": [...],
-                "swipeDurations": [...], 
-                "swipeSpeeds": [...],
-                "swipeDirections": [...],
-                "swipeAccelerations": [...]
-            },
-            "typing": {
-                "holdTimes": [...],
-                "flightTimes": [...],
-                "backspaceRates": [...],
-                "typingSpeeds": [...]
-            }
-        }
-        OR legacy format with individual fields
+        data_dict: Raw data from frontend with standardized format
     
     Returns:
         Comprehensive training results with model quality metrics
@@ -49,7 +33,7 @@ def get_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
         logger.info(f"Starting model training for user {user_id}")
         
         # Initialize preprocessor
-        preprocessor = StandardizedDataPreprocessor()
+        preprocessor = ImprovedDataPreprocessor()
         
         # Process the onboarding data
         processing_result = preprocessor.process_onboarding_data(str(user_id), data_dict)
@@ -94,7 +78,7 @@ def get_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
                 logger.info(f"   - Outlier rate: {swipe_result['metadata']['outlier_rate']}")
                 logger.info(f"   - CV score: {swipe_result['metadata']['cv_score_mean']}")
             else:
-                logger.error(f"❌ Failed to train swipe model for user {user_id_str}: {swipe_result.get('error')}")
+                logger.error(f"Failed to train swipe model for user {user_id_str}: {swipe_result.get('error')}")
         
         # Train typing model if data is available
         if 'typing' in training_data:
@@ -135,9 +119,9 @@ def get_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
         
         # Log final summary
         logger.info(f"Training completed for user {user_id_str}:")
-        logger.info(f" Successful: {', '.join(successful_models) if successful_models else 'None'}")
-        logger.info(f" Failed: {', '.join(failed_models) if failed_models else 'None'}")
-        logger.info(f" Success rate: {response['training_summary']['success_rate']:.1%}")
+        logger.info(f"Successful: {', '.join(successful_models) if successful_models else 'None'}")
+        logger.info(f"Failed: {', '.join(failed_models) if failed_models else 'None'}")
+        logger.info(f"Success rate: {response['training_summary']['success_rate']:.1%}")
         
         return response
         
@@ -153,7 +137,7 @@ def get_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
 
-def _generate_training_recommendations(training_response: Dict[str, Any]) -> List[str]:
+def _generate_training_recommendations(training_response: Dict[str, Any]) -> list[str]:
     """Generate recommendations based on training results"""
     recommendations = []
     
@@ -203,7 +187,7 @@ def validate_onboarding_data(user_id: Any, data_dict: Dict[str, Any]) -> Dict[st
     Enhanced validation function with detailed quality assessment
     """
     try:
-        preprocessor = StandardizedDataPreprocessor()
+        preprocessor = ImprovedDataPreprocessor()
         
         # Process and validate the data
         processing_result = preprocessor.process_onboarding_data(str(user_id), data_dict)
@@ -262,7 +246,7 @@ def validate_onboarding_data(user_id: Any, data_dict: Dict[str, Any]) -> Dict[st
             'user_id': str(user_id)
         }
 
-def _generate_validation_recommendations(readiness_metrics: Dict[str, Any], data_quality: Dict[str, Any]) -> List[str]:
+def _generate_validation_recommendations(readiness_metrics: Dict[str, Any], data_quality: Dict[str, Any]) -> list[str]:
     """Generate recommendations based on validation results"""
     recommendations = []
     
@@ -375,14 +359,14 @@ def test_enhanced_training_pipeline():
     validation_result = validate_onboarding_data(test_user_id, test_data)
     
     if validation_result['valid']:
-        print(f"✅ Data validation passed")
+        print(f"Data validation passed")
         print(f"   Readiness: {validation_result['readiness']}")
         print(f"   Available modalities: {list(validation_result['readiness_metrics'].keys())}")
         
         for modality, metrics in validation_result['readiness_metrics'].items():
             print(f"   {modality}: {metrics['sample_count']} samples, quality: {metrics['quality_score']:.2f}")
     else:
-        print(f"❌ Data validation failed: {validation_result['error']}")
+        print(f"Data validation failed: {validation_result['error']}")
         return
     
     # Test training
@@ -390,7 +374,7 @@ def test_enhanced_training_pipeline():
     training_result = get_model(test_user_id, test_data)
     
     if 'error' not in training_result:
-        print(f"✅ Training completed")
+        print(f"Training completed")
         print(f"   User ID: {training_result['user_id']}")
         print(f"   Overall status: {training_result['training_summary']['overall_status']}")
         print(f"   Success rate: {training_result['training_summary']['success_rate']:.1%}")
@@ -399,7 +383,7 @@ def test_enhanced_training_pipeline():
         for modality, result in training_result['training_results'].items():
             if result.get('success'):
                 metadata = result['metadata']
-                print(f"   ✅ {modality.capitalize()}: Trained successfully")
+                print(f" {modality.capitalize()}: Trained successfully")
                 print(f"      - Samples: {metadata['training_samples']}")
                 print(f"      - Outlier rate: {metadata['outlier_rate']:.3f}")
                 print(f"      - CV score: {metadata['cv_score_mean']:.3f} ± {metadata['cv_score_std']:.3f}")
