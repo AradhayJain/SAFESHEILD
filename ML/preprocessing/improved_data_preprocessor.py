@@ -179,7 +179,215 @@ class ImprovedDataPreprocessor:
                 'error': f'Onboarding processing failed: {str(e)}',
                 'timestamp': datetime.now().isoformat()
             }
+    # Add these methods to your existing ImprovedDataPreprocessor class in ML/preprocessing/improved_data_preprocessor.py
 
+    def process_request(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process a prediction request (wrapper for process_for_realtime_prediction)
+        
+        Args:
+            request_data: Dictionary containing 'user_id' and 'data'
+        
+        Returns:
+            Processed features ready for prediction
+        """
+        try:
+            user_id = request_data.get('user_id')
+            data = request_data.get('data', {})
+            
+            if not user_id:
+                return {
+                    'error': 'Missing user_id in request',
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            # Use existing realtime prediction processing
+            return self.process_for_realtime_prediction(user_id, data)
+            
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
+            return {
+                'error': f'Request processing failed: {str(e)}',
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def enable_performance_mode(self):
+        """Enable performance mode for faster processing"""
+        # Store original settings
+        if not hasattr(self, '_original_settings'):
+            self._original_settings = {
+                'min_samples_for_std': self.min_samples_for_std,
+                'min_samples_for_training': self.min_samples_for_training.copy()
+            }
+        
+        # Set performance mode settings (less validation, faster processing)
+        self.min_samples_for_std = 1  # Accept single samples
+        self.min_samples_for_training = {'swipe': 1, 'typing': 1}  # Very minimal requirements
+        self.performance_mode = True
+        
+        logger.info("Performance mode enabled for faster processing")
+    
+    def disable_performance_mode(self):
+        """Disable performance mode and restore original settings"""
+        if hasattr(self, '_original_settings'):
+            self.min_samples_for_std = self._original_settings['min_samples_for_std']
+            self.min_samples_for_training = self._original_settings['min_samples_for_training']
+            self.performance_mode = False
+            logger.info("Performance mode disabled, restored original settings")
+    
+    def process_lightweight(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Lightweight processing for maximum speed
+        
+        Args:
+            request_data: Dictionary containing 'user_id' and 'data'
+        
+        Returns:
+            Processed features with minimal validation
+        """
+        try:
+            user_id = request_data.get('user_id')
+            data = request_data.get('data', {})
+            
+            if not user_id:
+                return {
+                    'error': 'Missing user_id in request',
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            # Enable performance mode temporarily
+            original_mode = getattr(self, 'performance_mode', False)
+            if not original_mode:
+                self.enable_performance_mode()
+            
+            try:
+                # Quick data standardization (minimal validation)
+                standardized_data = self.standardize_input_data(data)
+                
+                # Extract features with minimal processing
+                features = {}
+                
+                # Quick swipe feature extraction
+                swipe_data = {k: v for k, v in standardized_data.items() 
+                             if k in ['distances', 'durations', 'speeds', 'directions', 'accelerations']}
+                
+                if swipe_data and any(len(v) > 0 if isinstance(v, list) else v for v in swipe_data.values()):
+                    swipe_features = self.extract_robust_swipe_features(swipe_data, is_realtime=True)
+                    features['swiping'] = [swipe_features[f] for f in self.swipe_features]
+                
+                # Quick typing feature extraction
+                typing_data = {k: v for k, v in standardized_data.items() 
+                              if k in ['hold_times', 'flight_times', 'backspace_rates', 'typing_speeds']}
+                
+                if typing_data and any(len(v) > 0 if isinstance(v, list) else v for v in typing_data.values()):
+                    typing_features = self.extract_robust_typing_features(typing_data, is_realtime=True)
+                    features['typing'] = [typing_features[f] for f in self.typing_features]
+                
+                result = {
+                    'user_id': str(user_id),
+                    'timestamp': datetime.now().isoformat(),
+                    'features': features,
+                    'mode': 'lightweight'
+                }
+                
+                if not features:
+                    result['error'] = 'No valid features extracted'
+                
+                return result
+                
+            finally:
+                # Restore original mode if it was disabled
+                if not original_mode:
+                    self.disable_performance_mode()
+            
+        except Exception as e:
+            logger.error(f"Error in lightweight processing for user {user_id}: {str(e)}")
+            return {
+                'user_id': str(user_id),
+                'error': f'Lightweight processing failed: {str(e)}',
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def batch_process_features(self, requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Process multiple requests efficiently
+        
+        Args:
+            requests: List of request dictionaries
+        
+        Returns:
+            List of processed results
+        """
+        try:
+            # Enable performance mode for batch processing
+            original_mode = getattr(self, 'performance_mode', False)
+            if not original_mode:
+                self.enable_performance_mode()
+            
+            results = []
+            
+            try:
+                for request in requests:
+                    result = self.process_lightweight(request)
+                    results.append(result)
+                
+                return results
+                
+            finally:
+                # Restore original mode
+                if not original_mode:
+                    self.disable_performance_mode()
+            
+        except Exception as e:
+            logger.error(f"Error in batch processing: {str(e)}")
+            return [{'error': f'Batch processing failed: {str(e)}'}]
+    
+    def quick_feature_check(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Quick check to see what features can be extracted from data
+        
+        Args:
+            data: Raw input data
+        
+        Returns:
+            Dictionary with availability information
+        """
+        try:
+            standardized_data = self.standardize_input_data(data)
+            
+            # Check swipe data availability
+            swipe_data = {k: v for k, v in standardized_data.items() 
+                         if k in ['distances', 'durations', 'speeds', 'directions', 'accelerations']}
+            swipe_available = any(len(v) > 0 if isinstance(v, list) else v for v in swipe_data.values())
+            swipe_sample_count = max([len(v) for v in swipe_data.values() if isinstance(v, list)], default=0)
+            
+            # Check typing data availability
+            typing_data = {k: v for k, v in standardized_data.items() 
+                          if k in ['hold_times', 'flight_times', 'backspace_rates', 'typing_speeds']}
+            typing_available = any(len(v) > 0 if isinstance(v, list) else v for v in typing_data.values())
+            typing_sample_count = max([len(v) for v in typing_data.values() if isinstance(v, list)], default=0)
+            
+            return {
+                'swiping': {
+                    'available': swipe_available,
+                    'sample_count': swipe_sample_count,
+                    'fields': list(swipe_data.keys()) if swipe_available else []
+                },
+                'typing': {
+                    'available': typing_available,
+                    'sample_count': typing_sample_count,
+                    'fields': list(typing_data.keys()) if typing_available else []
+                },
+                'total_modalities': sum([swipe_available, typing_available]),
+                'prediction_ready': swipe_available or typing_available
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in quick feature check: {str(e)}")
+            return {
+                'error': f'Feature check failed: {str(e)}',
+                'prediction_ready': False
+            }
     def standardize_input_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Standardize input data format with better error handling"""
         standardized = {}
