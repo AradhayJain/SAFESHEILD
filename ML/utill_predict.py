@@ -1,12 +1,22 @@
-from Swiping.predict_swipe_risk import SwipeRiskPredictor
-from Swiping.update_model import SwipeModelUpdater 
-from Typing.predict_typing_risk import TypingRiskPredictor
-from Typing.update_model import TypingModelUpdater
-from preprocessing.realtime_preprocessor import RealtimePreprocessor
-from typing import Dict, Any, List
+import sys
+import os
 import numpy as np
 import logging
-import datetime
+from datetime import datetime
+from typing import Dict, Any, List
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from swiping.predict_swipe_risk import SwipeRiskPredictor
+    from swiping.update_model import SwipeModelUpdater 
+    from typing.predict_typing_risk import TypingRiskPredictor
+    from typing.update_model import TypingModelUpdater
+    from preprocessing.improved_data_preprocessor import ImprovedDataPreprocessor
+except ImportError as e:
+    print(f"Import error in util_predict: {e}")
+    print("Please ensure all prediction modules are in the correct ML subdirectories")
+    sys.exit(1)
 
 logger = logging.getLogger(__name__)
 
@@ -27,65 +37,37 @@ def predict_with_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any
     
     Args:
         user_id: User identifier
-        data_dict: Nested data structure or legacy format:
-        {
-            "swiping": {
-                "swipeDistances": [...],
-                "swipeDurations": [...],
-                "swipeSpeeds": [...],
-                "swipeDirections": [...],
-                "swipeAccelerations": [...]
-            },
-            "typing": {
-                "holdTimes": [...],
-                "flightTimes": [...],
-                "backspaceRates": [...],
-                "typingSpeeds": [...]
-            }
-        }
+        data_dict: Data from frontend with standardized format
     
     Returns:
         Prediction results for each available modality
     """
     try:
-
-        if isinstance(data_dict, dict) and ('swiping' in data_dict or 'typing' in data_dict):
-
-            request_data = {
-                'user_id': user_id,
-                'data': data_dict
-            }
-        else:
-
-            logger.warning("Received legacy data format, attempting conversion")
-            request_data = {
-                'user_id': user_id,
-                'data': data_dict
-            }
+        logger.info(f"Starting prediction for user {user_id}")
         
-        # Initialize real-time preprocessor
-        preprocessor = RealtimePreprocessor()
+        # Initialize preprocessor
+        preprocessor = ImprovedDataPreprocessor()
         
         # Process data for prediction
-        preprocessing_result = preprocessor.process_request(request_data)
+        processing_result = preprocessor.process_for_realtime_prediction(str(user_id), data_dict)
         
-        if 'error' in preprocessing_result:
+        if 'error' in processing_result:
             return {
-                'error': preprocessing_result['error'],
+                'error': processing_result['error'],
                 'user_id': str(user_id),
-                'timestamp': preprocessing_result.get('timestamp'),
-                'details': preprocessing_result.get('metadata', {})
+                'timestamp': processing_result.get('timestamp'),
+                'details': processing_result.get('data_quality', {})
             }
         
-        user_id_str = str(preprocessing_result['user_id'])
-        features = preprocessing_result['features']
-        metadata = preprocessing_result['metadata']
+        user_id_str = str(processing_result['user_id'])
+        features = processing_result['features']
+        metadata = processing_result['data_quality']
         
         response = {
             'user_id': user_id_str,
-            'timestamp': preprocessing_result['timestamp'],
+            'timestamp': processing_result['timestamp'],
             'predictions': {},
-            'preprocessing_metadata': metadata
+            'processing_metadata': metadata
         }
         
         # Process swiping predictions
@@ -129,7 +111,16 @@ def predict_with_model(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, Any
                                    for mod, result in response['predictions'].items() 
                                    if 'prediction_result' in result and 'error' not in result['prediction_result']}
             }
+        else:
+            response['prediction_summary'] = {
+                'overall_risk': 'no_predictions',
+                'average_confidence': 0,
+                'modalities_analyzed': [],
+                'individual_risks': {},
+                'message': 'No valid predictions could be made'
+            }
         
+        logger.info(f"Prediction completed for user {user_id_str}: {response['prediction_summary']['overall_risk']}")
         return response
         
     except Exception as e:
@@ -239,31 +230,26 @@ def predict_lightweight(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, An
     
     Args:
         user_id: User identifier
-        data_dict: Nested data structure (same as predict_with_model)
+        data_dict: Data structure (same as predict_with_model)
     
     Returns:
         Simplified prediction results
     """
     try:
-        request_data = {
-            'user_id': user_id,
-            'data': data_dict
-        }
+        # Initialize preprocessor
+        preprocessor = ImprovedDataPreprocessor()
         
-        # Use lightweight processing
-        preprocessor = RealtimePreprocessor()
-        preprocessor.enable_performance_mode()  # Maximum speed
+        # Process data for prediction (lightweight mode)
+        processing_result = preprocessor.process_for_realtime_prediction(str(user_id), data_dict)
         
-        preprocessing_result = preprocessor.process_lightweight(request_data)
-        
-        if 'error' in preprocessing_result:
+        if 'error' in processing_result:
             return {
-                'error': preprocessing_result['error'],
+                'error': processing_result['error'],
                 'user_id': str(user_id)
             }
         
-        user_id_str = str(preprocessing_result['user_id'])
-        features = preprocessing_result['features']
+        user_id_str = str(processing_result['user_id'])
+        features = processing_result['features']
         
         predictions = {}
         
@@ -298,7 +284,7 @@ def predict_lightweight(user_id: Any, data_dict: Dict[str, Any]) -> Dict[str, An
         return {
             'user_id': user_id_str,
             'predictions': predictions,
-            'timestamp': preprocessing_result['timestamp'],
+            'timestamp': processing_result['timestamp'],
             'mode': 'lightweight'
         }
         
@@ -321,55 +307,92 @@ def batch_predict(requests: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         List of prediction results
     """
     try:
-        preprocessor = RealtimePreprocessor()
-        preprocessor.enable_performance_mode()
+        results = []
         
-        # Use batch processing
-        results = preprocessor.batch_process_features(requests)
-        
-        # Add predictions to each result
-        final_results = []
-        for result in results:
-            if 'error' not in result and 'features' in result:
-                # Add quick predictions
-                user_id = result['user_id']
-                features = result['features']
-                
-                predictions = {}
-                
-                if 'swiping' in features:
-                    try:
-                        srp = SwipeRiskPredictor()
-                        swipe_pred = srp.predict_swipe_risk(user_id, features['swiping'])
-                        if 'error' not in swipe_pred:
-                            predictions['swiping'] = {
-                                'risk_category': swipe_pred.get('risk_category', 'unknown'),
-                                'confidence': swipe_pred.get('confidence', 0)
-                            }
-                    except:
-                        pass
-                
-                if 'typing' in features:
-                    try:
-                        trp = TypingRiskPredictor()
-                        typing_pred = trp.predict_risk(user_id, features['typing'])
-                        if 'error' not in typing_pred:
-                            predictions['typing'] = {
-                                'risk_category': typing_pred.get('risk_category', 'unknown'),
-                                'confidence': typing_pred.get('confidence', 0)
-                            }
-                    except:
-                        pass
-                
-                result['predictions'] = predictions
+        for request in requests:
+            user_id = request.get('user_id')
+            data_dict = request.get('data', {})
             
-            final_results.append(result)
+            if not user_id:
+                results.append({'error': 'Missing user_id in request'})
+                continue
+            
+            # Process each request using lightweight prediction
+            result = predict_lightweight(user_id, data_dict)
+            results.append(result)
         
-        return final_results
+        return results
         
     except Exception as e:
         logger.error(f"Error in batch_predict: {str(e)}")
         return [{'error': f'Batch prediction failed: {str(e)}'}]
+
+def create_test_prediction_data():
+    """Create test data for prediction testing"""
+    return {
+        "swipeSpeedsNew": [1.2, 0.8, 1.5],
+        "swipeDirectionsNew": [85.5, 92.3, 78.1],
+        "swipeAccelerationsNew": [750.0, 820.5, 690.2],
+        "holdTimesNew": [180, 195, 170],
+        "flightTimesNew": [220, 180, 200],
+        "backspaceRatesNew": [0.05, 0.08, 0.03],
+        "typingSpeedsNew": [65.5, 62.8, 68.2]
+    }
+
+def test_prediction_pipeline():
+    """Test the prediction pipeline with sample data"""
+    print("Testing Enhanced Prediction Pipeline")
+    print("=" * 50)
+    
+    # Create test data
+    test_data = create_test_prediction_data()
+    test_user_id = "test_predict_user_001"
+    
+    print(f"\nTest prediction data:")
+    for key, values in test_data.items():
+        if isinstance(values, list):
+            print(f"  {key}: {len(values)} samples")
+    
+    # Test full prediction
+    print(f"\nTesting full prediction...")
+    prediction_result = predict_with_model(test_user_id, test_data)
+    
+    if 'error' not in prediction_result:
+        print(f"Prediction successful")
+        print(f"   User ID: {prediction_result['user_id']}")
+        
+        if 'prediction_summary' in prediction_result:
+            summary = prediction_result['prediction_summary']
+            print(f"   Overall risk: {summary.get('overall_risk', 'unknown')}")
+            print(f"   Confidence: {summary.get('average_confidence', 0):.2f}")
+            print(f"   Modalities: {', '.join(summary.get('modalities_analyzed', []))}")
+        
+        # Show individual predictions
+        for modality, result in prediction_result.get('predictions', {}).items():
+            if result.get('status') == 'success':
+                pred = result['prediction_result']
+                print(f" {modality.capitalize()}: {pred.get('risk_category', 'unknown')} "
+                      f"(confidence: {pred.get('confidence', 0):.2f})")
+            else:
+                print(f"  {modality.capitalize()}: {result.get('prediction_result', {}).get('error', 'Unknown error')}")
+    else:
+        print(f"Prediction failed: {prediction_result['error']}")
+    
+    # Test lightweight prediction
+    print(f"\nTesting lightweight prediction...")
+    lightweight_result = predict_lightweight(test_user_id, test_data)
+    
+    if 'error' not in lightweight_result:
+        print(f"Lightweight prediction successful")
+        print(f"   Mode: {lightweight_result.get('mode', 'unknown')}")
+        for modality, pred in lightweight_result.get('predictions', {}).items():
+            print(f"   {modality.capitalize()}: {pred.get('risk_category', 'unknown')} "
+                  f"(confidence: {pred.get('confidence', 0):.2f})")
+    else:
+        print(f"Lightweight prediction failed: {lightweight_result['error']}")
+    
+    print(f"\n" + "=" * 50)
+    return prediction_result, lightweight_result
 
 # Legacy support functions (backward compatibility)
 def flatten_swiping_data(data: dict) -> List[float]:
@@ -378,6 +401,10 @@ def flatten_swiping_data(data: dict) -> List[float]:
     return [value[0] if isinstance(value, list) else value for value in data.values()]
 
 def flatten_typing_data(data: dict) -> List[float]:
-    """Fixed legacy function for typing data"""
+    """Legacy function - kept for backward compatibility"""
     logger.warning("Using deprecated flatten_typing_data function")
     return [value[0] if isinstance(value, list) else value for value in data.values()]
+
+if __name__ == "__main__":
+    # Run the test
+    test_prediction_pipeline()
