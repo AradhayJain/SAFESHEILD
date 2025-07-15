@@ -224,7 +224,7 @@ export default function TrackBehaviourScreen() {
               console.log('FINAL swipeDurations:', swipeDurations); 
               console.log('FINAL swipeSpeeds:', swipeSpeeds); 
               console.log('FINAL swipeDirections:', swipeDirections); 
-            }, 0);
+            }, 10);
           }
         }
       }
@@ -242,7 +242,7 @@ export default function TrackBehaviourScreen() {
       const backspaceRateHistory = typingData.flatMap(q => q.backspaceRateHistory);
       const typingSpeedHistory = typingData.flatMap(q => q.typingSpeedHistory);
 
-      const { data } = await axios.post('http://192.168.1.6:9001/api/data/getDat', {
+      const { data } = await axios.post('http://192.168.1.6:9001/api/data/getData', {
         userId: user._id,
         data2: {
           swipeDistances,

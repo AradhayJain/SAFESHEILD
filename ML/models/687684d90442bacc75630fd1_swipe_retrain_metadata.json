@@ -1,0 +1,10 @@
+{
+  "user_id": "687684d90442bacc75630fd1",
+  "retrain_date": "2025-07-15T22:16:17.625860",
+  "training_samples": 40,
+  "validation_samples": 10,
+  "train_outlier_rate": 0.1,
+  "val_outlier_rate": 0.0,
+  "total_pool_samples": 50,
+  "clean_samples_used": 50
+}

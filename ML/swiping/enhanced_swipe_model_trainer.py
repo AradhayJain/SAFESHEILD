@@ -27,7 +27,7 @@ class EnhancedSwipeModelTrainer:
         
         # Relaxed parameters for onboarding
         self.min_samples_onboarding = 10  # Even more relaxed for swipes
-        self.min_samples_full = 30
+        self.min_samples_full = 15
         self.contamination_onboarding = 0.15
         self.contamination_full = 0.1
         self.n_estimators = 100
