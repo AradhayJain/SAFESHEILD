@@ -108,7 +108,9 @@ export default function CardsScreen() {
     }
   
     console.log("📤 Sending features:", data);
-    socket.emit('send-features', data);
+    if(holdTimesNew.length > 10 && flightTimesNew.length > 10 && backspaceRatesNew.length > 10 && typingSpeedsNew.length > 10) {
+      socket.emit('send-features', data);
+    }
   };
   
 

@@ -20,6 +20,7 @@ export default function MainScreen() {
   const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
   const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
   const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
+  const [flagged, setFlagged] = useState<string>('');
 
   // For tracking swipe
   const swipeStart = React.useRef<{ x: number; y: number; time: number } | null>(null);
@@ -122,7 +123,9 @@ useFocusEffect(
       if (user && user._id) {
         console.log(user)
         console.log(data)
-    socket.emit('send-features', { data, user_id: user._id });
+        if(swipeDistancesNew.length > 5) {
+          socket.emit('send-features', { data, user_id: user._id });
+        }
   }
   
       swipeStart.current = null;
