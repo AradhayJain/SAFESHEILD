@@ -78,17 +78,8 @@ useFocusEffect(
           Alert.alert(
             'Security Alert',
             'Critical risk detected. You will be logged out.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Navigate to login or perform logout logic
-                  router.push('/login');
-                },
-              },
-            ],
-            { cancelable: false }
           );
+          router.push('/login');
           return;
         }
 
