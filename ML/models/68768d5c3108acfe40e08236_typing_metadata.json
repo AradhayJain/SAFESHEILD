@@ -1,0 +1,31 @@
+{
+  "user_id": "68768d5c3108acfe40e08236",
+  "training_date": "2025-07-15T22:50:04.286216",
+  "is_onboarding": false,
+  "total_samples": 361,
+  "clean_samples": 219,
+  "training_samples": 219,
+  "outlier_rate": 0.1005,
+  "contamination": 0.1,
+  "cv_score_mean": -0.4485,
+  "cv_score_std": 0.0631,
+  "silhouette_score": 0.4524,
+  "feature_columns": [
+    "hold_mean",
+    "hold_std",
+    "flight_mean",
+    "flight_std",
+    "backspace_rate",
+    "typing_speed"
+  ],
+  "model_parameters": {
+    "n_estimators": 100,
+    "random_state": 42,
+    "bootstrap": true
+  },
+  "data_quality": {
+    "missing_values_handled": true,
+    "outliers_processed": true,
+    "population_baseline_added": false
+  }
+}

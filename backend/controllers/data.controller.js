@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import axios from 'axios';
+import UserBehaviorData from "../models/data.model.js";
 
 let ws = null;
 
@@ -104,46 +105,67 @@ export const predictWithWebSocket = (data, userId, onMessageCallback, onErrorCal
   
 
 export const sendData = async (req, res) => {
-    
-    console.log("added")
-  
-    const {userId,data2} = req.body;
-  
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized: No user ID found." });
-    }
-  
-    const data1 = {
-      user_id: userId,
-      data: {
-        swiping: {
-          swipeDistances: data2.swipeDistances,
-          swipeDurations: data2.swipeDurations,
-          swipeSpeeds: data2.swipeSpeeds,
-          swipeDirections: data2.swipeDirections,
-          swipeAccelerations: data2.swipeAccelerations,
-        },
-        typing: {
-          holdTimes: data2.holdTimes,
-          flightTimes: data2.flightTimes,
-          backspaceRates: data2.backspaceRates,
-          typingSpeeds: data2.typingSpeeds,
-        },
-      },
-    };
-    
-    console.log(data1)
-  
-    try {
-      const response = await axios.post('http://localhost:5000/train_model', data1);
-      res.status(200).json({
-        message: 'Data sent successfully to prediction server.',
-        response:response.data
-    });
-    } catch (error) {
-      console.error("Prediction API error:", error.message);
-      const status = error.response?.status || 500;
-      const message = error.response?.data?.error || "Internal server error";
-      res.status(status).json({ error: message });
-    }
+  console.log("added");
+
+  const { userId, data2 } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized: No user ID found." });
+  }
+
+  // Construct raw data for local DB save
+  const dbData = {
+    userId: userId,
+    swipeDistances: data2.swipeDistances,
+    swipeDurations: data2.swipeDurations,
+    swipeSpeeds: data2.swipeSpeeds,
+    swipeDirections: data2.swipeDirections,
+    swipeAccelerations: data2.swipeAccelerations,
+    holdTimes: data2.holdTimes,
+    flightTimes: data2.flightTimes,
+    backspaceRates: data2.backspaceRates,
+    typingSpeeds: data2.typingSpeeds
   };
+
+  const data1 = {
+    user_id: userId,
+    data: {
+      swiping: {
+        swipeDistances: data2.swipeDistances,
+        swipeDurations: data2.swipeDurations,
+        swipeSpeeds: data2.swipeSpeeds,
+        swipeDirections: data2.swipeDirections,
+        swipeAccelerations: data2.swipeAccelerations,
+      },
+      typing: {
+        holdTimes: data2.holdTimes,
+        flightTimes: data2.flightTimes,
+        backspaceRates: data2.backspaceRates,
+        typingSpeeds: data2.typingSpeeds,
+      },
+    },
+  };
+
+  console.log(data1);
+
+  try {
+    // Save to MongoDB
+    const savedEntry = await UserBehaviorData.create(dbData);
+    await savedEntry.save();
+
+    // Send to prediction server
+    const response = await axios.post('http://localhost:5000/train_model', data1);
+
+    res.status(200).json({
+      message: 'Data saved and sent successfully to prediction server.',
+      dbEntry: savedEntry,
+      predictionResponse: response.data
+    });
+
+  } catch (error) {
+    console.error("Error:", error.message);
+    const status = error.response?.status || 500;
+    const message = error.response?.data?.error || "Internal server error";
+    res.status(status).json({ error: message });
+  }
+};
