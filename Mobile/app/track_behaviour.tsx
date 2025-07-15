@@ -5,12 +5,11 @@ import { GestureHandlerRootView, PanGestureHandler, PanGestureHandlerGestureEven
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
 const questions = [
-    "Describe yourself in one paragraph.",
-    "Describe your experience with online banking. What features do you use the most?",
-    "Explain why you chose your current bank account type and how it benefits you.",
-    "How do you keep track of your transactions and account balances?"
+  "Describe yourself in one paragraph.",
+  "Describe your experience with online banking. What features do you use the most?",
+  "Explain why you chose your current bank account type and how it benefits you.",
+  "How do you keep track of your transactions and account balances?"
 ];
 
 export default function TrackBehaviourScreen() {
@@ -35,148 +34,131 @@ export default function TrackBehaviourScreen() {
       holdTimes: [] as number[],
       flightTimes: [] as number[],
       typingSpeed: 0,
+      typingSpeedHistory: [] as number[],
       wpm: 0,
       backspaceRate: 0,
+      backspaceRateHistory: [] as number[],
       wordCount: 0,
     }))
   );
 
-  
   const keyDownTime = useRef<number | null>(null);
   const lastKeyUpTime = useRef<number | null>(null);
   const firstKeyDownTime = useRef<number | null>(null);
-
-  const gestureStart = useRef<{x: number, y: number, t: number} | null>(null);
+  const gestureStart = useRef<{ x: number, y: number, t: number } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Typing tracking (simulate keyDown/keyUp for mobile)
   useEffect(() => {
     const loadStoredData = async () => {
       try {
-        // const storedToken = await AsyncStorage.getItem('authToken');
         const storedUser = await AsyncStorage.getItem('authUser');
-        // if (storedToken) setToken(storedToken);
         if (storedUser) setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error('Error loading from AsyncStorage', error);
       }
     };
-
     loadStoredData();
   }, []);
 
-const handleTyping = (text: string) => {
-  const now = Date.now();
+  const handleTyping = (text: string) => {
+    const now = Date.now();
+    if (firstKeyDownTime.current === null) {
+      firstKeyDownTime.current = now;
+    }
 
-  // If typing started for this question, record the first timestamp
-  if (firstKeyDownTime.current === null) {
-    firstKeyDownTime.current = now;
-  }
+    if (keyDownTime.current !== null && lastKeyUpTime.current !== null) {
+      setTypingData(prev => {
+        const updated = [...prev];
+        updated[current].flightTimes.push(now - lastKeyUpTime.current!);
+        return updated;
+      });
+    }
 
-  // Compute flight time if there was a previous keyUp
-  if (keyDownTime.current !== null && lastKeyUpTime.current !== null) {
-    setTypingData(prev => {
+    keyDownTime.current = now;
+
+    if (answers[current].length > text.length) {
+      setTypingData(prev => {
+        const updated = [...prev];
+        updated[current].backspaceCount++;
+        return updated;
+      });
+    } else {
+      setTypingData(prev => {
+        const updated = [...prev];
+        updated[current].keyCount++;
+        return updated;
+      });
+    }
+
+    setAnswers(prev => {
       const updated = [...prev];
-      updated[current].flightTimes.push(now - lastKeyUpTime.current!);
+      updated[current] = text;
       return updated;
     });
-  }
 
-  keyDownTime.current = now;
+    setTimeout(() => {
+      const holdTime = Date.now() - keyDownTime.current!;
+      lastKeyUpTime.current = Date.now();
 
-  // Detect backspace
-  if (answers[current].length > text.length) {
-    setTypingData(prev => {
-      const updated = [...prev];
-      updated[current].backspaceCount++;
-      return updated;
-    });
-  } else {
-    setTypingData(prev => {
-      const updated = [...prev];
-      updated[current].keyCount++;
-      return updated;
-    });
-  }
+      setTypingData(prev => {
+        const updated = [...prev];
+        updated[current].holdTimes.push(holdTime);
+        updated[current].endTime = lastKeyUpTime.current!;
 
-  setAnswers(prev => {
-    const updated = [...prev];
-    updated[current] = text;
-    return updated;
-  });
+        const durationSeconds =
+          (updated[current].endTime! - (updated[current].startTime || firstKeyDownTime.current!)) / 1000;
 
-  // Simulate keyUp after short delay
-  setTimeout(() => {
-    const holdTime = Date.now() - keyDownTime.current!;
-    lastKeyUpTime.current = Date.now();
+        const charPerSec = durationSeconds > 0
+          ? (updated[current].keyCount / durationSeconds)
+          : 0;
 
-    setTypingData(prev => {
-      const updated = [...prev];
-      updated[current].holdTimes.push(holdTime);
-      updated[current].endTime = lastKeyUpTime.current!;
+        const wpm = durationSeconds > 0
+          ? (updated[current].keyCount / 5) / (durationSeconds / 60)
+          : 0;
 
-      // Compute derived metrics
-      const durationSeconds =
-        (updated[current].endTime! - (updated[current].startTime || firstKeyDownTime.current!)) / 1000;
+        const backspaceRate = updated[current].keyCount > 0
+          ? updated[current].backspaceCount / updated[current].keyCount
+          : 0;
 
-      const charPerSec = durationSeconds > 0
-        ? updated[current].keyCount / durationSeconds
-        : 0;
+        const wordCount = answers[current].trim().length > 0
+          ? answers[current].trim().split(/\s+/).length
+          : 0;
 
-      const wpm = durationSeconds > 0
-        ? (updated[current].keyCount / 5) / (durationSeconds / 60)
-        : 0;
+        updated[current] = {
+          ...updated[current],
+          startTime: updated[current].startTime || firstKeyDownTime.current!,
+          typingSpeed: charPerSec,
+          typingSpeedHistory: [...updated[current].typingSpeedHistory, charPerSec],
+          wpm,
+          backspaceRate,
+          backspaceRateHistory: [...updated[current].backspaceRateHistory, backspaceRate],
+          wordCount,
+        };
 
-      const backspaceRate = updated[current].keyCount > 0
-        ? updated[current].backspaceCount / updated[current].keyCount
-        : 0;
-
-      const wordCount = answers[current].trim().length > 0
-        ? answers[current].trim().split(/\s+/).length
-        : 0;
-
-      updated[current] = {
-        ...updated[current],
-        startTime: updated[current].startTime || firstKeyDownTime.current!,
-        typingSpeed: charPerSec,
-        wpm,
-        backspaceRate,
-        wordCount,
-      };
-
-      return updated;
-    });
-  }, 100);
-};
-
+        return updated;
+      });
+    }, 100);
+  };
 
   const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {};
 
   const onHandlerStateChange = (event: PanGestureHandlerGestureEvent) => {
     const { nativeEvent } = event;
-    
-    if (nativeEvent.state === 2) { // BEGAN
+    if (nativeEvent.state === 2) {
       gestureStart.current = { x: nativeEvent.x, y: nativeEvent.y, t: Date.now() };
     }
-    if (nativeEvent.state === 5 && gestureStart.current) { // END
-      const x1 = gestureStart.current.x;
-      const y1 = gestureStart.current.y;
-      const t1 = gestureStart.current.t;
-      const x2 = nativeEvent.x;
-      const y2 = nativeEvent.y;
-      const t2 = Date.now();
-
-      const dx = x2 - x1;
-      const dy = y2 - y1;
+    if (nativeEvent.state === 5 && gestureStart.current) {
+      const { x, y, t } = gestureStart.current;
+      const dx = nativeEvent.x - x;
+      const dy = nativeEvent.y - y;
+      const duration = Date.now() - t;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const duration = t2 - t1;
       const speed = duration > 0 ? distance / duration : 0;
       let direction = Math.atan2(dy, dx) * (180 / Math.PI);
-      if(direction < 0) direction += 360;
-      const acceleration = duration > 0 ? (1e5)*speed / duration : 0;
+      if (direction < 0) direction += 360;
+      const acceleration = duration > 0 ? (1e5) * speed / duration : 0;
 
       if (Math.abs(dx) > 50) {
-        // Prevent swipe if answer is empty
         if (!answers[current] || answers[current].trim() === '') {
           Alert.alert('Please answer the question before proceeding.');
           gestureStart.current = null;
@@ -195,84 +177,91 @@ const handleTyping = (text: string) => {
         setSwipeDirections(prev => [...prev, direction]);
         setSwipeAccelerations(prev => [...prev, acceleration]);
 
-        // After 3 swipes, move to next question or finish
-        if (swipeCount[current] + 1 >= 3) {
-          // Reset typing trackers for next question
+        if (swipeCount[current] + 1 >= 4) {
           keyDownTime.current = null;
           lastKeyUpTime.current = null;
           firstKeyDownTime.current = null;
 
           setTypingData(prev => {
             const updated = [...prev];
-            updated[current + 1] = {
-              keyCount: 0,
-              backspaceCount: 0,
-              startTime: null,
-              endTime: null,
-              holdTimes: [],
-              flightTimes: [],
-              typingSpeed: 0,
-              wpm: 0,
-              backspaceRate: 0,
-              wordCount: 0,
-            };
+            if (current + 1 < questions.length) {
+              updated[current + 1] = {
+                keyCount: 0,
+                backspaceCount: 0,
+                startTime: null,
+                endTime: null,
+                holdTimes: [],
+                flightTimes: [],
+                typingSpeed: 0,
+                typingSpeedHistory: [],
+                wpm: 0,
+                backspaceRate: 0,
+                backspaceRateHistory: [],
+                wordCount: 0,
+              };
+            }
             return updated;
           });
 
           if (current < questions.length - 1) {
             setCurrent(current + 1);
           } else {
-            // Remove router.replace('/login') here
             const holdTimes = typingData.flatMap(q => q.holdTimes);
             const flightTimes = typingData.flatMap(q => q.flightTimes);
             const backspaceRates = typingData.map(q => q.backspaceRate);
             const typingSpeeds = typingData.map(q => q.wpm);
-            
+            const backspaceRateHistory = typingData.flatMap(q => q.backspaceRateHistory);
+            const typingSpeedHistory = typingData.flatMap(q => q.typingSpeedHistory);
+
             setTimeout(() => {
-              console.log('FINAL swipeDistances:', swipeDistances);
-              console.log('FINAL swipeDurations:', swipeDurations);
-              console.log('FINAL swipeSpeeds:', swipeSpeeds);
-              console.log('FINAL swipeDirections:', swipeDirections);
-              console.log('FINAL swipeAccelerations:', swipeAccelerations);
               console.log('FINAL holdTimes:', holdTimes);
               console.log('FINAL flightTimes:', flightTimes);
-              console.log('FINAL backspaceRates:', backspaceRates);
-              console.log('FINAL typingSpeeds:', typingSpeeds);
-              // Do NOT navigate away here
+              console.log('FINAL backspaceRateHistory:', backspaceRateHistory);
+              console.log('FINAL backspaceRate:', backspaceRates);
+              console.log('FINAL typingSpeedHistory:', typingSpeedHistory);
+              console.log('FINAL typingSpeed:', typingSpeeds);
+              console.log('FINAL swipeDistances', swipeDistances);
+              console.log('FINAL swipeDurations:', swipeDurations); 
+              console.log('FINAL swipeSpeeds:', swipeSpeeds); 
+              console.log('FINAL swipeDirections:', swipeDirections); 
             }, 0);
           }
         }
-        
       }
+
       gestureStart.current = null;
     }
   };
 
-  // Submit handler
   const handleSubmit = async () => {
     try {
       const holdTimes = typingData.flatMap(q => q.holdTimes);
       const flightTimes = typingData.flatMap(q => q.flightTimes);
       const backspaceRates = typingData.map(q => q.backspaceRate);
       const typingSpeeds = typingData.map(q => q.wpm);
+      const backspaceRateHistory = typingData.flatMap(q => q.backspaceRateHistory);
+      const typingSpeedHistory = typingData.flatMap(q => q.typingSpeedHistory);
 
-      const { data } = await axios.post('http://192.168.1.6:9001/api/data/getData', {userId:user._id,data2:{
-        swipeDistances,
-        swipeDurations,
-        swipeSpeeds,
-        swipeDirections,
-        swipeAccelerations,
-        holdTimes,
-        flightTimes,
-        backspaceRates,
-        typingSpeeds,
-      }});
+      const { data } = await axios.post('http://192.168.1.6:9001/api/data/getDat', {
+        userId: user._id,
+        data2: {
+          swipeDistances,
+          swipeDurations,
+          swipeSpeeds,
+          swipeDirections,
+          swipeAccelerations,
+          holdTimes,
+          flightTimes,
+          backspaceRates : backspaceRateHistory,
+          typingSpeeds : typingSpeedHistory,
+        },
+      });
 
-      if(data){console.log('Data received:', data);}
+      if (data) console.log('Data received:', data);
       Alert.alert('Data submitted successfully!');
       router.replace('/login');
     } catch (error) {
-      Alert.alert('Submission failed', (error as any)?.response?.data?.message || (typeof error === 'string' ? error : 'Unknown error'));
+      Alert.alert('Submission failed', (error as any)?.response?.data?.message || 'Unknown error');
     }
   };
 
@@ -316,9 +305,8 @@ const handleTyping = (text: string) => {
                   }}
                 />
                 <Text style={styles.swipeHint}>
-                  Swipe 3 times to go to next question ({swipeCount[current]}/3)
+                  Swipe 4 times to go to next question ({swipeCount[current]}/4)
                 </Text>
-                {/* Show Submit button only on last question and after 3 swipes */}
                 {current === questions.length - 1 && swipeCount[current] >= 3 && (
                   <View style={{ marginTop: 16, width: '100%' }}>
                     <Text
@@ -330,7 +318,6 @@ const handleTyping = (text: string) => {
                         borderRadius: 8,
                         fontWeight: 'bold',
                         fontSize: 16,
-                        overflow: 'hidden',
                       }}
                       onPress={handleSubmit}
                     >
