@@ -1,0 +1,2 @@
+hold_mean,hold_std,flight_mean,flight_std,backspace_rate,typing_speed,risk_category,timestamp,anomaly_score
+165.0,24.75,210.0,31.5,0.05,65.8,high_risk,2025-07-15T13:52:03.889940,-0.5944
