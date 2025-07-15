@@ -113,45 +113,49 @@ class ImprovedDataPreprocessor:
                         logger.info(f"Created swipe training DataFrame with {len(swipe_features_list)} sessions")
             
             # Process typing data  
-            if 'typing' in readiness['modalities'] and readiness['modalities']['typing']['readiness'] != 'insufficient':
-                # Create multiple sessions from typing data
-                typing_features_list = []
-                
-                # Extract all typing data
-                typing_data = {k: v for k, v in standardized_data.items() 
-                              if k in ['hold_times', 'flight_times', 'backspace_rates', 'typing_speeds']}
-                
-                if typing_data:
-                    # Get the length of available data
-                    hold_times = typing_data.get('hold_times', [])
-                    flight_times = typing_data.get('flight_times', [])
-                    backspace_rates = typing_data.get('backspace_rates', [])
-                    typing_speeds = typing_data.get('typing_speeds', [])
+                if 'typing' in readiness['modalities'] and readiness['modalities']['typing']['readiness'] != 'insufficient':
+                    typing_features_list = []
                     
-                    # Create overlapping windows for training
-                    max_length = max(len(hold_times), len(flight_times), len(backspace_rates), len(typing_speeds))
+                    # Extract all typing data
+                    typing_data = {k: v for k, v in standardized_data.items() 
+                                if k in ['hold_times', 'flight_times', 'backspace_rates', 'typing_speeds']}
                     
-                    if max_length >= 5:  # Minimum window size
-                        window_size = max(3, min(8, max_length // 3))  # Adaptive window size
-                        step_size = max(1, window_size // 2)
+                    if typing_data:
+                        # Get the arrays
+                        hold_times = typing_data.get('hold_times', [])
+                        flight_times = typing_data.get('flight_times', [])
+                        backspace_rates = typing_data.get('backspace_rates', [])
+                        typing_speeds = typing_data.get('typing_speeds', [])
                         
-                        for start_idx in range(0, max_length - window_size + 1, step_size):
-                            end_idx = start_idx + window_size
+                        # Find the minimum length to avoid index errors
+                        min_length = min(
+                            len(hold_times) if hold_times else 0,
+                            len(flight_times) if flight_times else 0,
+                            len(backspace_rates) if backspace_rates else 0,
+                            len(typing_speeds) if typing_speeds else 0
+                        )
+                        
+                        logger.info(f"Typing data lengths: hold={len(hold_times)}, flight={len(flight_times)}, backspace={len(backspace_rates)}, speed={len(typing_speeds)}")
+                        logger.info(f"Using minimum length: {min_length}")
+                        
+                        # Create individual feature rows for each typing event
+                        if min_length > 0:
+                            for i in range(min_length):
+                                # Create session data for each individual typing event
+                                session_data = {
+                                    'hold_times': [hold_times[i]] if i < len(hold_times) else [150.0],
+                                    'flight_times': [flight_times[i]] if i < len(flight_times) else [200.0],
+                                    'backspace_rates': [backspace_rates[i]] if i < len(backspace_rates) else [0.1],
+                                    'typing_speeds': [typing_speeds[i]] if i < len(typing_speeds) else [60.0]
+                                }
+                                
+                                # Extract features for this individual event
+                                session_features = self.extract_robust_typing_features(session_data, is_realtime=False)
+                                typing_features_list.append(session_features)
                             
-                            session_data = {
-                                'hold_times': hold_times[start_idx:end_idx] if start_idx < len(hold_times) else [150.0],
-                                'flight_times': flight_times[start_idx:end_idx] if start_idx < len(flight_times) else [200.0],
-                                'backspace_rates': backspace_rates[start_idx:end_idx] if start_idx < len(backspace_rates) else [0.1],
-                                'typing_speeds': typing_speeds[start_idx:end_idx] if start_idx < len(typing_speeds) else [60.0]
-                            }
-                            
-                            session_features = self.extract_robust_typing_features(session_data, is_realtime=False)
-                            typing_features_list.append(session_features)
-                    
-                    if typing_features_list:
-                        training_data['typing'] = pd.DataFrame(typing_features_list)
-                        logger.info(f"Created typing training DataFrame with {len(typing_features_list)} sessions")
-            
+                            if typing_features_list:
+                                training_data['typing'] = pd.DataFrame(typing_features_list)
+                                logger.info(f"Created typing training DataFrame with {len(typing_features_list)} individual samples")
             # Prepare result
             result = {
                 'user_id': user_id,

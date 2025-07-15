@@ -6,7 +6,7 @@ import os
 import logging
 
 # Add the current directory to Python path to find local modules
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))) 
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
