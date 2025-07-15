@@ -42,6 +42,8 @@ export default function CardsScreen() {
   const backspaceCount = useRef<number>(0);
   const totalTyped = useRef<number>(0);
   const typingStartTime = useRef<number | null>(null);
+  const [flagged, setFlagged] = useState<string[]>([]);
+  
 
   useEffect(() => {
     (async () => {
@@ -65,6 +67,64 @@ export default function CardsScreen() {
   useEffect(() => {
     socket.on('prediction-result', (msg: string) => {
       console.log('Received message:', msg);
+      let data;
+      try {
+        data = JSON.parse(msg);
+      } catch (e) {
+        console.error('❌ Failed to parse prediction message:', e);
+        return;
+      }
+
+      // Extract swipeRisk
+      const swipeRisk = data?.swiping?.prediction_result?.risk_category;
+      console.log('🧪 swipeRisk:', swipeRisk);
+
+      if (!swipeRisk) return;
+
+      // If critical risk → alert and logout
+      if (swipeRisk === 'critical_risk') {
+        Alert.alert(
+          'Security Alert',
+          'Critical risk detected. You will be logged out.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate to login or perform logout logic
+                router.push('/login');
+              },
+            },
+          ],
+          { cancelable: false }
+        );
+        return;
+      }
+
+      // Otherwise, store risk in flagged
+      setFlagged((prev) => {
+        const updated = [...prev, swipeRisk];
+
+        const mediumCount = updated.filter(
+          (risk) => risk === 'medium_risk'
+        ).length;
+        const highCount = updated.filter(
+          (risk) => risk === 'high_risk'
+        ).length;
+
+        console.log(
+          `⚠️ Risks so far → Medium: ${mediumCount}, High: ${highCount}`
+        );
+
+        if (mediumCount >= 5 || highCount >= 2) {
+          Alert.alert(
+            'Security Alert',
+            'Too many risky sessions detected. Logging out.',
+          );
+          router.push('/login');
+        }
+
+        return updated;
+      });
     });
     return () => {
       socket.off('prediction-result');

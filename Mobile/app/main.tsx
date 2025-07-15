@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -20,7 +21,8 @@ export default function MainScreen() {
   const [swipeSpeeds, setSwipeSpeeds] = useState<number[]>([]);
   const [swipeDirections, setSwipeDirections] = useState<number[]>([]);
   const [swipeAccelerations, setSwipeAccelerations] = useState<number[]>([]);
-  const [flagged, setFlagged] = useState<string>('');
+  const [flagged, setFlagged] = useState<string[]>([]);
+
 
   // For tracking swipe
   const swipeStart = React.useRef<{ x: number; y: number; time: number } | null>(null);
@@ -56,6 +58,64 @@ useFocusEffect(
   useCallback(() => {
     const handlePrediction = (msg: string) => {
       console.log('📨 Received prediction:', msg);
+              // Parse JSON string
+        let data;
+        try {
+          data = JSON.parse(msg);
+        } catch (e) {
+          console.error('❌ Failed to parse prediction message:', e);
+          return;
+        }
+
+        // Extract swipeRisk
+        const swipeRisk = data?.swiping?.prediction_result?.risk_category;
+        console.log('🧪 swipeRisk:', swipeRisk);
+
+        if (!swipeRisk) return;
+
+        // If critical risk → alert and logout
+        if (swipeRisk === 'critical_risk') {
+          Alert.alert(
+            'Security Alert',
+            'Critical risk detected. You will be logged out.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Navigate to login or perform logout logic
+                  router.push('/login');
+                },
+              },
+            ],
+            { cancelable: false }
+          );
+          return;
+        }
+
+        // Otherwise, store risk in flagged
+        setFlagged((prev) => {
+          const updated = [...prev, swipeRisk];
+
+          const mediumCount = updated.filter(
+            (risk) => risk === 'medium_risk'
+          ).length;
+          const highCount = updated.filter(
+            (risk) => risk === 'high_risk'
+          ).length;
+
+          console.log(
+            `⚠️ Risks so far → Medium: ${mediumCount}, High: ${highCount}`
+          );
+
+          if (mediumCount >= 5 || highCount >= 2) {
+            Alert.alert(
+              'Security Alert',
+              'Too many risky sessions detected. Logging out.',
+            );
+            router.push('/login');
+          }
+          return updated;
+        });
     };
 
     if (!socket) return;
