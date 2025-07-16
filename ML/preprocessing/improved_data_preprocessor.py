@@ -535,110 +535,114 @@ class ImprovedDataPreprocessor:
         return features
 
     def extract_robust_typing_features(self, typing_data: Dict[str, List[float]], 
-                                     is_realtime: bool = False) -> Dict[str, float]:
-        """
-        Extract typing features with robust handling of insufficient data
+                                 is_realtime: bool = False) -> Dict[str, float]:
+    """
+    Extract typing features - UPDATED for new data format
+    - typingSpeeds now contains characters per second values
+    - backspaceRates now contains per-keystroke rates
+    
+    Args:
+        typing_data: Dictionary with typing data
+        is_realtime: True if this is a single real-time event
+    
+    Returns:
+        Dictionary with statistical features
+    """
+    try:
+        # Handle real-time single event
+        if is_realtime:
+            return self._extract_realtime_typing_features(typing_data)
         
-        Args:
-            typing_data: Dictionary with typing data
-            is_realtime: True if this is a single real-time event
+        # Get data arrays
+        hold_times = np.array(typing_data.get('hold_times', []))
+        flight_times = np.array(typing_data.get('flight_times', []))
+        backspace_rates = np.array(typing_data.get('backspace_rates', []))
+        typing_speeds = np.array(typing_data.get('typing_speeds', []))
         
-        Returns:
-            Dictionary with statistical features
-        """
-        try:
-            # Handle real-time single event
-            if is_realtime:
-                return self._extract_realtime_typing_features(typing_data)
-            
-            # Get data arrays
-            hold_times = np.array(typing_data.get('hold_times', []))
-            flight_times = np.array(typing_data.get('flight_times', []))
-            backspace_rates = np.array(typing_data.get('backspace_rates', []))
-            typing_speeds = np.array(typing_data.get('typing_speeds', []))
-            
-            # Check if we have any data
-            if (len(hold_times) == 0 and len(flight_times) == 0 and 
-                len(backspace_rates) == 0 and len(typing_speeds) == 0):
-                logger.warning("No typing data available, using defaults")
-                return self.defaults['typing'].copy()
-            
-            features = {}
-            
-            # Hold time features
-            if len(hold_times) >= 1:
-                features['hold_mean'] = float(np.mean(hold_times))
-                if len(hold_times) >= self.min_samples_for_std:
-                    features['hold_std'] = float(np.std(hold_times))
-                else:
-                    # Use reasonable default based on mean (about 15% of mean)
-                    features['hold_std'] = max(10.0, features['hold_mean'] * 0.15)
-            else:
-                features['hold_mean'] = self.defaults['typing']['hold_mean']
-                features['hold_std'] = self.defaults['typing']['hold_std']
-            
-            # Flight time features
-            if len(flight_times) >= 1:
-                features['flight_mean'] = float(np.mean(flight_times))
-                if len(flight_times) >= self.min_samples_for_std:
-                    features['flight_std'] = float(np.std(flight_times))
-                else:
-                    # Use reasonable default based on mean
-                    features['flight_std'] = max(15.0, features['flight_mean'] * 0.15)
-            else:
-                features['flight_mean'] = self.defaults['typing']['flight_mean']
-                features['flight_std'] = self.defaults['typing']['flight_std']
-            
-            # Backspace rate (take most recent or average)
-            if len(backspace_rates) >= 1:
-                # Use the most recent value for rates (they're often cumulative)
-                features['backspace_rate'] = float(backspace_rates[-1])
-            else:
-                features['backspace_rate'] = self.defaults['typing']['backspace_rate']
-            
-            # Typing speed (take most recent or average)
-            if len(typing_speeds) >= 1:
-                # Use the most recent value for speeds (they're often cumulative)
-                features['typing_speed'] = float(typing_speeds[-1])
-            else:
-                features['typing_speed'] = self.defaults['typing']['typing_speed']
-            
-            # Validate features
-            for key, value in features.items():
-                if np.isnan(value) or np.isinf(value):
-                    features[key] = self.defaults['typing'][key]
-                    logger.warning(f"Invalid typing feature {key}, using default")
-            
-            # Additional validation for specific ranges
-            features['backspace_rate'] = max(0.0, min(1.0, features['backspace_rate']))
-            features['typing_speed'] = max(5.0, min(300.0, features['typing_speed']))
-            
-            logger.debug(f"Extracted typing features from {len(hold_times)} hold, {len(flight_times)} flight, {len(typing_speeds)} speed samples")
-            return features
-            
-        except Exception as e:
-            logger.error(f"Error extracting typing features: {str(e)}")
+        # Check if we have any data
+        if (len(hold_times) == 0 and len(flight_times) == 0 and 
+            len(backspace_rates) == 0 and len(typing_speeds) == 0):
+            logger.warning("No typing data available, using defaults")
             return self.defaults['typing'].copy()
-
-    def _extract_realtime_typing_features(self, typing_data: Dict[str, List[float]]) -> Dict[str, float]:
-        """Extract features from a single real-time typing event"""
-        features = self.defaults['typing'].copy()
         
-        if 'hold_times' in typing_data and typing_data['hold_times']:
-            features['hold_mean'] = float(typing_data['hold_times'][-1])
-            features['hold_std'] = features['hold_mean'] * 0.15
+        features = {}
         
-        if 'flight_times' in typing_data and typing_data['flight_times']:
-            features['flight_mean'] = float(typing_data['flight_times'][-1])
-            features['flight_std'] = features['flight_mean'] * 0.15
+        # Hold time features (unchanged)
+        if len(hold_times) >= 1:
+            features['hold_mean'] = float(np.mean(hold_times))
+            if len(hold_times) >= self.min_samples_for_std:
+                features['hold_std'] = float(np.std(hold_times))
+            else:
+                features['hold_std'] = max(10.0, features['hold_mean'] * 0.15)
+        else:
+            features['hold_mean'] = self.defaults['typing']['hold_mean']
+            features['hold_std'] = self.defaults['typing']['hold_std']
         
-        if 'backspace_rates' in typing_data and typing_data['backspace_rates']:
-            features['backspace_rate'] = float(typing_data['backspace_rates'][-1])
+        # Flight time features (unchanged)
+        if len(flight_times) >= 1:
+            features['flight_mean'] = float(np.mean(flight_times))
+            if len(flight_times) >= self.min_samples_for_std:
+                features['flight_std'] = float(np.std(flight_times))
+            else:
+                features['flight_std'] = max(15.0, features['flight_mean'] * 0.15)
+        else:
+            features['flight_mean'] = self.defaults['typing']['flight_mean']
+            features['flight_std'] = self.defaults['typing']['flight_std']
         
-        if 'typing_speeds' in typing_data and typing_data['typing_speeds']:
-            features['typing_speed'] = float(typing_data['typing_speeds'][-1])
+        # UPDATED: Backspace rate - now average of per-keystroke rates
+        if len(backspace_rates) >= 1:
+            # Since we now get per-keystroke rates, take the mean
+            features['backspace_rate'] = float(np.mean(backspace_rates))
+        else:
+            features['backspace_rate'] = self.defaults['typing']['backspace_rate']
         
+        # UPDATED: Typing speed - now characters per second, take mean
+        if len(typing_speeds) >= 1:
+            # Since we now get per-keystroke speeds in chars/sec, take the mean
+            features['typing_speed'] = float(np.mean(typing_speeds))
+        else:
+            features['typing_speed'] = self.defaults['typing']['typing_speed']
+        
+        # Validate features
+        for key, value in features.items():
+            if np.isnan(value) or np.isinf(value):
+                features[key] = self.defaults['typing'][key]
+                logger.warning(f"Invalid typing feature {key}, using default")
+        
+        # UPDATED: Additional validation for new ranges
+        features['backspace_rate'] = max(0.0, min(1.0, features['backspace_rate']))
+        features['typing_speed'] = max(0.5, min(15.0, features['typing_speed']))  # chars/sec range
+        
+        logger.debug(f"Extracted typing features: hold={len(hold_times)}, flight={len(flight_times)}, "
+                    f"backspace={len(backspace_rates)}, speed={len(typing_speeds)} samples")
         return features
+        
+    except Exception as e:
+        logger.error(f"Error extracting typing features: {str(e)}")
+        return self.defaults['typing'].copy()
+
+def _extract_realtime_typing_features(self, typing_data: Dict[str, List[float]]) -> Dict[str, float]:
+    """Extract features from a single real-time typing event - UPDATED"""
+    features = self.defaults['typing'].copy()
+    
+    if 'hold_times' in typing_data and typing_data['hold_times']:
+        features['hold_mean'] = float(typing_data['hold_times'][-1])
+        features['hold_std'] = features['hold_mean'] * 0.15
+    
+    if 'flight_times' in typing_data and typing_data['flight_times']:
+        features['flight_mean'] = float(typing_data['flight_times'][-1])
+        features['flight_std'] = features['flight_mean'] * 0.15
+    
+    # UPDATED: Handle new backspace rate format (per-keystroke)
+    if 'backspace_rates' in typing_data and typing_data['backspace_rates']:
+        features['backspace_rate'] = float(typing_data['backspace_rates'][-1])
+    
+    # UPDATED: Handle new typing speed format (chars/sec)
+    if 'typing_speeds' in typing_data and typing_data['typing_speeds']:
+        features['typing_speed'] = float(typing_data['typing_speeds'][-1])
+    
+    return features
+
 
     def assess_data_readiness(self, standardized_data: Dict[str, Any]) -> Dict[str, Any]:
         """
