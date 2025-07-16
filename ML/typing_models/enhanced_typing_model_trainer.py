@@ -44,7 +44,7 @@ class EnhancedTypingModelTrainer:
         self.population_baseline = {
             'hold_mean': 150.0, 'hold_std': 25.0,
             'flight_mean': 200.0, 'flight_std': 30.0,
-            'backspace_rate': 0.1, 'typing_speed': 60.0
+            'backspace_rate': 0.1, 'typing_speed': 3.5
         }
 
     def validate_data(self, df: pd.DataFrame, is_onboarding: bool = False) -> Tuple[bool, str]:
@@ -67,7 +67,7 @@ class EnhancedTypingModelTrainer:
             (df['hold_mean'], 10, 1000, "hold_mean"),
             (df['flight_mean'], 10, 2000, "flight_mean"), 
             (df['backspace_rate'], 0, 1, "backspace_rate"),
-            (df['typing_speed'], 5, 300, "typing_speed")
+            (df['typing_speed'], 0.5, 15, "typing_speed")
         ]
         
         for col_data, min_val, max_val, col_name in validations:
