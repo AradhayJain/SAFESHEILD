@@ -77,7 +77,7 @@ useFocusEffect(
         if (swipeRisk === 'critical_risk') {
           Alert.alert(
             'Security Alert',
-            'Critical risk detected. You will be logged out.',
+            'Critical risk detected. You will be logged out....',
           );
           router.push('/login');
           return;
@@ -93,15 +93,18 @@ useFocusEffect(
           const highCount = updated.filter(
             (risk) => risk === 'high_risk'
           ).length;
+          const lowCount = updated.filter(
+            (risk) => risk === 'low_risk'
+          ).length;
 
           console.log(
-            `⚠️ Risks so far → Medium: ${mediumCount}, High: ${highCount}`
+            `⚠️ Risks so far → Low: ${lowCount}, Medium: ${mediumCount}, High: ${highCount}`
           );
 
-          if (mediumCount >= 5 || highCount >= 2) {
+          if (lowCount >= 10 || mediumCount >= 5 || highCount >= 2) {
             Alert.alert(
               'Security Alert',
-              'Too many risky sessions detected. Logging out.',
+              'Too many risky sessions detected. Logging out.....',
             );
             router.push('/login');
           }
