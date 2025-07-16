@@ -14,16 +14,20 @@ class SwipeRiskPredictor:
             'speed_mean', 'speed_std', 'direction_mean', 
             'direction_std', 'acceleration_mean', 'acceleration_std'
         ]
+        
+        # UPDATED: More lenient risk thresholds to reduce false positives
+        self.min_samples_required = 5  # NEW: Minimum samples before prediction
     
     def get_risk_category(self, score: float) -> str:
-        """Enhanced risk categorization with more granular levels"""
-        if score < -0.6:
+        """Enhanced risk categorization - MORE LENIENT thresholds"""
+        # UPDATED: More lenient thresholds to reduce false positives
+        if score < -0.8:    # Was -0.6, now much stricter for critical
             return 'critical_risk'
-        elif score < -0.4:
+        elif score < -0.65:  # Was -0.4, now stricter for high risk
             return 'high_risk'
-        elif score < -0.2:
+        elif score < -0.45:  # Was -0.2, now stricter for medium risk
             return 'medium_risk'
-        elif score < -0.1:
+        elif score < -0.25:  # Was -0.1, now stricter for low risk
             return 'low_risk'
         return 'normal'
     
@@ -40,14 +44,23 @@ class SwipeRiskPredictor:
             logger.warning(f"Unusual speed_mean: {speed_mean}")
         if not (0 <= direction_mean <= 2*np.pi):
             logger.warning(f"Unusual direction_mean: {direction_mean}")
-        if not (0 <= acceleration_mean <= 1000):
+        if not (0 <= acceleration_mean <= 3000):  # Increased upper limit
             logger.warning(f"Unusual acceleration_mean: {acceleration_mean}")
         
         return True
     
-    def predict_swipe_risk(self, user_id: str, session_vector: List[float]) -> Dict:
-        """Predict swipe risk with enhanced analysis"""
+    def predict_swipe_risk(self, user_id: str, session_vector: List[float], 
+                          sample_count: int = None) -> Dict:
+        """Predict swipe risk with minimum sample requirement"""
         try:
+            # NEW: Check minimum sample requirement
+            if sample_count is not None and sample_count < self.min_samples_required:
+                return {
+                    'error': f'Insufficient swipe samples: {sample_count} (minimum: {self.min_samples_required})',
+                    'requires_more_samples': True,
+                    'samples_needed': self.min_samples_required - sample_count
+                }
+            
             if not self.validate_session_vector(session_vector):
                 return {'error': 'Invalid session vector'}
             
@@ -73,13 +86,14 @@ class SwipeRiskPredictor:
             
             risk_category = self.get_risk_category(anomaly_score)
             
-            # Calculate confidence
-            confidence = min(abs(decision_score) * 100, 100)
+            # UPDATED: More conservative confidence calculation
+            base_confidence = min(abs(decision_score) * 100, 100)
+            # Reduce confidence for swipe predictions (less reliable with fewer samples)
+            confidence = base_confidence * 0.7  # Reduced by 30%
             
             # Analyze individual features
             feature_analysis = {}
             for i, (feature_name, value) in enumerate(zip(self.feature_names, session_vector)):
-                # Get feature's contribution to anomaly (simplified)
                 feature_scaled = X_scaled[0][i]
                 feature_analysis[feature_name] = {
                     'value': value,
@@ -96,9 +110,12 @@ class SwipeRiskPredictor:
                 'is_outlier': is_outlier,
                 'confidence': round(confidence, 2),
                 'feature_analysis': feature_analysis,
-                'session_vector': session_vector
+                'session_vector': session_vector,
+                'sample_count': sample_count,
+                'modality_weight': 0.2  # NEW: Weight for overall risk calculation
             }
             
         except Exception as e:
             logger.error(f"Error predicting swipe risk for {user_id}: {str(e)}")
             return {'error': f'Prediction failed: {str(e)}'}
+
