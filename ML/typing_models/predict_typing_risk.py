@@ -15,7 +15,7 @@ class TypingRiskPredictor:
         # NEW: Minimum samples required before making predictions
         self.min_samples_required = 20
     
-     def get_risk_category(self, score: float) -> str:
+    def get_risk_category(self, score: float) -> str:
         """Enhanced risk categorization - MORE LENIENT thresholds"""
         # UPDATED: More lenient thresholds to reduce false positives
         if score < -0.8:    # Was -0.6, now much stricter for critical
