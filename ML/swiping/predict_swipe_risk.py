@@ -118,4 +118,3 @@ class SwipeRiskPredictor:
         except Exception as e:
             logger.error(f"Error predicting swipe risk for {user_id}: {str(e)}")
             return {'error': f'Prediction failed: {str(e)}'}
-

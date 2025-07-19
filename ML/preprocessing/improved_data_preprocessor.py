@@ -429,7 +429,352 @@ class ImprovedDataPreprocessor:
                 standardized[clean_key] = value
         
         return standardized
+    def extract_enhanced_swipe_features(self, swipe_data: Dict[str, List[float]], 
+                                  is_realtime: bool = False) -> Dict[str, float]:
+        """
+        Extract enhanced swipe features from existing frontend data
+        NO new sensors needed - all calculated from speeds, directions, accelerations
+        """
+        try:
+            speeds = np.array(swipe_data.get('speeds', []))
+            directions = np.array(swipe_data.get('directions', []))
+            accelerations = np.array(swipe_data.get('accelerations', []))
+            
+            if len(speeds) == 0:
+                return self._get_default_enhanced_swipe_features()
+            
+            # Convert directions to radians if needed
+            if len(directions) > 0 and directions.max() > 2 * np.pi:
+                directions = np.radians(directions)
+            
+            features = {}
+            
+            # ORIGINAL 6 features (keep these)
+            features['speed_mean'] = float(np.mean(speeds))
+            features['speed_std'] = float(np.std(speeds)) if len(speeds) > 1 else 0.1
+            features['direction_mean'] = float(np.mean(directions)) if len(directions) > 0 else 1.57
+            features['direction_std'] = float(np.std(directions)) if len(directions) > 1 else 0.5
+            features['acceleration_mean'] = float(np.mean(accelerations)) if len(accelerations) > 0 else 500.0
+            features['acceleration_std'] = float(np.std(accelerations)) if len(accelerations) > 1 else 150.0
+            
+            # NEW ENHANCED features (calculated from existing data)
+            features['speed_trend'] = self.calculate_trend(speeds)
+            features['direction_consistency'] = self.calculate_direction_consistency(directions)
+            features['acceleration_smoothness'] = self.calculate_smoothness(accelerations)
+            features['gesture_complexity'] = self.calculate_gesture_complexity(speeds, directions)
+            features['speed_variability'] = float(np.var(speeds)) if len(speeds) > 1 else 0.1
+            features['pressure_estimate'] = self.estimate_pressure_from_motion(speeds, accelerations)
+            
+            # Additional behavioral features from existing data
+            features['velocity_entropy'] = self.calculate_entropy(speeds)
+            features['direction_entropy'] = self.calculate_entropy(directions) if len(directions) > 0 else 0.5
+            features['motion_jerk'] = self.calculate_jerk(accelerations)
+            features['gesture_duration'] = self.estimate_gesture_duration(speeds)
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error extracting enhanced swipe features: {str(e)}")
+            return self._get_default_enhanced_swipe_features()
 
+    def extract_enhanced_typing_features(self, typing_data: Dict[str, List[float]], 
+                                    is_realtime: bool = False) -> Dict[str, float]:
+        """
+        Extract enhanced typing features from existing frontend data
+        NO new sensors needed - all calculated from hold_times, flight_times, etc.
+        """
+        try:
+            hold_times = np.array(typing_data.get('hold_times', []))
+            flight_times = np.array(typing_data.get('flight_times', []))
+            backspace_rates = np.array(typing_data.get('backspace_rates', []))
+            typing_speeds = np.array(typing_data.get('typing_speeds', []))
+            
+            if len(hold_times) == 0:
+                return self._get_default_enhanced_typing_features()
+            
+            features = {}
+            
+            # ORIGINAL 6 features (keep these)
+            features['hold_mean'] = float(np.mean(hold_times))
+            features['hold_std'] = float(np.std(hold_times)) if len(hold_times) > 1 else 10.0
+            features['flight_mean'] = float(np.mean(flight_times)) if len(flight_times) > 0 else 200.0
+            features['flight_std'] = float(np.std(flight_times)) if len(flight_times) > 1 else 15.0
+            features['backspace_rate'] = float(np.mean(backspace_rates)) if len(backspace_rates) > 0 else 0.1
+            features['typing_speed'] = float(np.mean(typing_speeds)) if len(typing_speeds) > 0 else 3.5
+            
+            # NEW ENHANCED features (calculated from existing data)
+            features['rhythm_consistency'] = self.calculate_typing_rhythm(hold_times, flight_times)
+            features['keystroke_dynamics'] = self.calculate_keystroke_dynamics(hold_times, flight_times)
+            features['pressure_variance'] = float(np.var(hold_times)) if len(hold_times) > 1 else 100.0
+            features['typing_flow'] = self.calculate_typing_flow(flight_times)
+            
+            # Additional behavioral features from existing timing data
+            features['hold_flight_ratio'] = self.calculate_hold_flight_ratio(hold_times, flight_times)
+            features['typing_entropy'] = self.calculate_entropy(hold_times)
+            features['speed_consistency'] = self.calculate_speed_consistency(typing_speeds)
+            features['backspace_pattern'] = self.analyze_backspace_pattern(backspace_rates)
+            features['timing_complexity'] = self.calculate_timing_complexity(hold_times, flight_times)
+            features['keystroke_pressure'] = self.estimate_keystroke_pressure(hold_times)
+            
+            return features
+            
+        except Exception as e:
+            logger.error(f"Error extracting enhanced typing features: {str(e)}")
+            return self._get_default_enhanced_typing_features()
+    def calculate_trend(self, values: np.ndarray) -> float:
+        """Calculate trend in time series (slope of linear fit)"""
+        if len(values) < 3:
+            return 0.0
+        try:
+            x = np.arange(len(values))
+            slope = np.polyfit(x, values, 1)[0]
+            return float(slope)
+        except:
+            return 0.0
+
+    def calculate_direction_consistency(self, directions: np.ndarray) -> float:
+        """Calculate how consistent direction changes are"""
+        if len(directions) < 3:
+            return 0.5
+        try:
+            # Calculate direction changes
+            direction_changes = np.diff(directions)
+            # Normalize to -π to π
+            direction_changes = np.arctan2(np.sin(direction_changes), np.cos(direction_changes))
+            # Consistency = 1 / (1 + variance of changes)
+            consistency = 1.0 / (1.0 + np.var(direction_changes))
+            return float(min(1.0, consistency))
+        except:
+            return 0.5
+
+    def calculate_smoothness(self, values: np.ndarray) -> float:
+        """Calculate smoothness (inverse of jerk/sudden changes)"""
+        if len(values) < 3:
+            return 0.5
+        try:
+            # Calculate second derivative (jerk)
+            jerk = np.diff(values, n=2)
+            jerk_variance = np.var(jerk) if len(jerk) > 0 else 0
+            smoothness = 1.0 / (1.0 + jerk_variance / 100.0)  # Normalize
+            return float(min(1.0, smoothness))
+        except:
+            return 0.5
+
+    def calculate_gesture_complexity(self, speeds: np.ndarray, directions: np.ndarray) -> float:
+        """Calculate gesture complexity from speed and direction patterns"""
+        if len(speeds) < 3 or len(directions) < 3:
+            return 0.5
+        try:
+            # Speed complexity
+            speed_changes = np.sum(np.abs(np.diff(speeds)) > np.std(speeds) / 2)
+            
+            # Direction complexity  
+            direction_changes = np.sum(np.abs(np.diff(directions)) > np.pi/6)  # >30 degree changes
+            
+            # Normalize by gesture length
+            total_points = min(len(speeds), len(directions)) - 1
+            if total_points <= 0:
+                return 0.5
+                
+            complexity = (speed_changes + direction_changes) / (2 * total_points)
+            return float(min(1.0, complexity))
+        except:
+            return 0.5
+
+    def estimate_pressure_from_motion(self, speeds: np.ndarray, accelerations: np.ndarray) -> float:
+        """Estimate pressure from motion patterns (higher acceleration = more pressure)"""
+        if len(accelerations) == 0:
+            return 0.5
+        try:
+            # Higher accelerations suggest more forceful gestures
+            pressure_proxy = np.mean(accelerations) / 1000.0  # Normalize
+            return float(min(1.0, max(0.0, pressure_proxy)))
+        except:
+            return 0.5
+
+    def calculate_entropy(self, values: np.ndarray) -> float:
+        """Calculate entropy (randomness) of values"""
+        if len(values) < 3:
+            return 0.5
+        try:
+            # Discretize values into bins
+            hist, _ = np.histogram(values, bins=min(10, len(values)//2))
+            hist = hist[hist > 0]  # Remove empty bins
+            prob = hist / np.sum(hist)
+            entropy = -np.sum(prob * np.log2(prob + 1e-10))
+            # Normalize to 0-1
+            max_entropy = np.log2(len(prob))
+            normalized_entropy = entropy / max_entropy if max_entropy > 0 else 0
+            return float(min(1.0, normalized_entropy))
+        except:
+            return 0.5
+
+    def calculate_jerk(self, accelerations: np.ndarray) -> float:
+        """Calculate jerk (rate of change of acceleration)"""
+        if len(accelerations) < 3:
+            return 0.5
+        try:
+            jerk = np.diff(accelerations, n=2)
+            jerk_magnitude = np.mean(np.abs(jerk)) if len(jerk) > 0 else 0
+            # Normalize
+            normalized_jerk = min(1.0, jerk_magnitude / 1000.0)
+            return float(normalized_jerk)
+        except:
+            return 0.5
+
+    def estimate_gesture_duration(self, speeds: np.ndarray) -> float:
+        """Estimate gesture duration from speed patterns"""
+        if len(speeds) < 2:
+            return 0.5
+        try:
+            # Find start and end of gesture (when speed > threshold)
+            threshold = np.mean(speeds) * 0.3
+            active_points = np.sum(speeds > threshold)
+            duration_proxy = active_points / len(speeds)
+            return float(min(1.0, duration_proxy))
+        except:
+            return 0.5
+
+    def calculate_typing_rhythm(self, hold_times: np.ndarray, flight_times: np.ndarray) -> float:
+        """Calculate typing rhythm consistency"""
+        if len(hold_times) < 3 or len(flight_times) < 3:
+            return 0.5
+        try:
+            # Combine hold and flight times to create rhythm pattern
+            min_len = min(len(hold_times), len(flight_times))
+            rhythm_pattern = []
+            for i in range(min_len):
+                rhythm_pattern.append(hold_times[i])
+                if i < len(flight_times):
+                    rhythm_pattern.append(flight_times[i])
+            
+            # Calculate rhythm consistency (low variance = high consistency)
+            rhythm_variance = np.var(rhythm_pattern)
+            consistency = 1.0 / (1.0 + rhythm_variance / 1000.0)
+            return float(min(1.0, consistency))
+        except:
+            return 0.5
+
+    def calculate_keystroke_dynamics(self, hold_times: np.ndarray, flight_times: np.ndarray) -> float:
+        """Calculate keystroke dynamics pattern"""
+        if len(hold_times) < 2 or len(flight_times) < 2:
+            return 0.5
+        try:
+            # Calculate hold-to-flight ratios
+            min_len = min(len(hold_times), len(flight_times))
+            ratios = []
+            for i in range(min_len):
+                if flight_times[i] > 0:
+                    ratios.append(hold_times[i] / flight_times[i])
+            
+            if len(ratios) < 2:
+                return 0.5
+                
+            # Consistency of ratios indicates typing dynamics
+            ratio_consistency = 1.0 / (1.0 + np.var(ratios))
+            return float(min(1.0, ratio_consistency))
+        except:
+            return 0.5
+
+    def calculate_typing_flow(self, flight_times: np.ndarray) -> float:
+        """Calculate typing flow (smoothness of transitions)"""
+        if len(flight_times) < 3:
+            return 0.5
+        try:
+            # Calculate flow as inverse of flight time variance
+            flow = 1.0 / (1.0 + np.var(flight_times) / 1000.0)
+            return float(min(1.0, flow))
+        except:
+            return 0.5
+
+    def calculate_hold_flight_ratio(self, hold_times: np.ndarray, flight_times: np.ndarray) -> float:
+        """Calculate average hold-to-flight time ratio"""
+        if len(hold_times) == 0 or len(flight_times) == 0:
+            return 0.75  # Default ratio
+        try:
+            avg_hold = np.mean(hold_times)
+            avg_flight = np.mean(flight_times)
+            ratio = avg_hold / (avg_flight + 1e-6)  # Avoid division by zero
+            # Normalize to reasonable range
+            normalized_ratio = min(2.0, max(0.1, ratio)) / 2.0
+            return float(normalized_ratio)
+        except:
+            return 0.75
+
+    def calculate_speed_consistency(self, typing_speeds: np.ndarray) -> float:
+        """Calculate consistency of typing speed"""
+        if len(typing_speeds) < 2:
+            return 0.5
+        try:
+            speed_variance = np.var(typing_speeds)
+            consistency = 1.0 / (1.0 + speed_variance)
+            return float(min(1.0, consistency))
+        except:
+            return 0.5
+
+    def analyze_backspace_pattern(self, backspace_rates: np.ndarray) -> float:
+        """Analyze backspace usage pattern"""
+        if len(backspace_rates) == 0:
+            return 0.1  # Default low backspace pattern
+        try:
+            avg_backspace = np.mean(backspace_rates)
+            backspace_consistency = 1.0 / (1.0 + np.var(backspace_rates) + 1e-6)
+            # Combine rate and consistency
+            pattern_score = (1.0 - avg_backspace) * 0.7 + backspace_consistency * 0.3
+            return float(min(1.0, max(0.0, pattern_score)))
+        except:
+            return 0.1
+
+    def calculate_timing_complexity(self, hold_times: np.ndarray, flight_times: np.ndarray) -> float:
+        """Calculate complexity of timing patterns"""
+        if len(hold_times) < 3 or len(flight_times) < 3:
+            return 0.5
+        try:
+            # Combine timing data
+            all_times = np.concatenate([hold_times, flight_times])
+            
+            # Calculate complexity as entropy
+            complexity = self.calculate_entropy(all_times)
+            return float(complexity)
+        except:
+            return 0.5
+
+    def estimate_keystroke_pressure(self, hold_times: np.ndarray) -> float:
+        """Estimate keystroke pressure from hold times"""
+        if len(hold_times) == 0:
+            return 0.5
+        try:
+            # Longer hold times might indicate more pressure
+            avg_hold = np.mean(hold_times)
+            # Normalize to 0-1 range (assuming 50-300ms normal range)
+            pressure_estimate = (avg_hold - 50) / 250.0
+            return float(min(1.0, max(0.0, pressure_estimate)))
+        except:
+            return 0.5
+
+    def _get_default_enhanced_swipe_features(self) -> Dict[str, float]:
+        """Default enhanced swipe features"""
+        return {
+            # Original 6
+            'speed_mean': 1.0, 'speed_std': 0.3, 'direction_mean': 1.57, 
+            'direction_std': 0.5, 'acceleration_mean': 500.0, 'acceleration_std': 150.0,
+            # Enhanced 10  
+            'speed_trend': 0.0, 'direction_consistency': 0.5, 'acceleration_smoothness': 0.5,
+            'gesture_complexity': 0.5, 'speed_variability': 0.1, 'pressure_estimate': 0.5,
+            'velocity_entropy': 0.5, 'direction_entropy': 0.5, 'motion_jerk': 0.5, 'gesture_duration': 0.5
+        }
+
+    def _get_default_enhanced_typing_features(self) -> Dict[str, float]:
+        """Default enhanced typing features"""
+        return {
+            # Original 6
+            'hold_mean': 150.0, 'hold_std': 25.0, 'flight_mean': 200.0, 
+            'flight_std': 30.0, 'backspace_rate': 0.1, 'typing_speed': 3.5,
+            # Enhanced 10
+            'rhythm_consistency': 0.5, 'keystroke_dynamics': 0.5, 'pressure_variance': 100.0,
+            'typing_flow': 0.5, 'hold_flight_ratio': 0.75, 'typing_entropy': 0.5,
+            'speed_consistency': 0.5, 'backspace_pattern': 0.1, 'timing_complexity': 0.5, 'keystroke_pressure': 0.5
+        }
     def extract_robust_swipe_features(self, swipe_data: Dict[str, List[float]], 
                                     is_realtime: bool = False) -> Dict[str, float]:
         """
@@ -855,26 +1200,24 @@ class ImprovedDataPreprocessor:
             }
 
     def validate_and_clean_data(self, data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
-        """Enhanced validation with better handling of edge cases"""
+        """ENHANCED validation with better noise handling"""
         cleaned_data = {}
         warnings = []
         
         try:
             for key, value in data.items():
                 if isinstance(value, list):
-                    # Clean list data
-                    clean_list = []
-                    for item in value:
-                        if isinstance(item, (int, float)) and not (np.isnan(item) or np.isinf(item)):
-                            clean_list.append(float(item))
-                        elif isinstance(item, list):
-                            # Handle nested lists
-                            clean_sublist = [float(x) for x in item if isinstance(x, (int, float)) and not (np.isnan(x) or np.isinf(x))]
-                            if clean_sublist:
-                                clean_list.extend(clean_sublist)  # Flatten nested lists
+                    # ENHANCED: Better noise detection and removal
+                    clean_list = self.clean_noisy_data(value, key)
                     
                     if len(clean_list) != len(value):
-                        warnings.append(f"Removed {len(value) - len(clean_list)} invalid values from {key}")
+                        removed_count = len(value) - len(clean_list)
+                        warnings.append(f"Removed {removed_count} noisy values from {key}")
+                    
+                    # ENHANCED: Detect and handle sensor drift
+                    if self.detect_sensor_drift(clean_list, key):
+                        clean_list = self.correct_sensor_drift(clean_list, key)
+                        warnings.append(f"Corrected sensor drift in {key}")
                     
                     cleaned_data[key] = clean_list
                     
@@ -891,6 +1234,293 @@ class ImprovedDataPreprocessor:
             warnings.append(f"Data validation error: {str(e)}")
         
         return cleaned_data, warnings
+
+    def clean_noisy_data(self, values: List, field_name: str) -> List[float]:
+        """ENHANCED: Remove noise from sensor data"""
+        if not values:
+            return []
+        
+        try:
+            # Convert to numpy array
+            arr = np.array([float(x) for x in values if isinstance(x, (int, float)) 
+                           and not (np.isnan(x) or np.isinf(x))])
+            
+            if len(arr) == 0:
+                return []
+            
+            # ENHANCED: Multi-stage noise removal
+            
+            # Stage 1: Remove extreme outliers (likely sensor errors)
+            arr = self.remove_extreme_outliers(arr, field_name)
+            
+            # Stage 2: Apply median filter for spike removal
+            if len(arr) >= 5:
+                arr = self.apply_median_filter(arr)
+            
+            # Stage 3: Remove statistical outliers
+            arr = self.remove_statistical_outliers(arr, field_name)
+            
+            # Stage 4: Apply smoothing if needed
+            if self.should_apply_smoothing(field_name) and len(arr) >= 3:
+                arr = self.apply_smoothing(arr)
+            
+            return arr.tolist()
+            
+        except Exception as e:
+            logger.error(f"Error cleaning noisy data for {field_name}: {str(e)}")
+            return [float(x) for x in values if isinstance(x, (int, float)) 
+                   and not (np.isnan(x) or np.isinf(x))]
+
+    def remove_extreme_outliers(self, arr: np.ndarray, field_name: str) -> np.ndarray:
+        """Remove extreme outliers based on field-specific thresholds"""
+        
+        # Field-specific extreme value thresholds
+        extreme_thresholds = {
+            'speeds': (0, 50),          # Max reasonable swipe speed
+            'directions': (0, 2*np.pi + 1),  # Direction range
+            'accelerations': (0, 20000),     # Max reasonable acceleration
+            'hold_times': (5, 2000),         # Reasonable typing hold times
+            'flight_times': (5, 5000),       # Reasonable flight times
+            'backspace_rates': (0, 1),       # Rate range
+            'typing_speeds': (0.1, 25)       # Reasonable typing speeds
+        }
+        
+        # Find matching threshold
+        threshold = None
+        for key, (min_val, max_val) in extreme_thresholds.items():
+            if key in field_name.lower():
+                threshold = (min_val, max_val)
+                break
+        
+        if threshold:
+            min_val, max_val = threshold
+            mask = (arr >= min_val) & (arr <= max_val)
+            removed = len(arr) - np.sum(mask)
+            if removed > 0:
+                logger.debug(f"Removed {removed} extreme outliers from {field_name}")
+            return arr[mask]
+        
+        return arr
+
+    def apply_median_filter(self, arr: np.ndarray, window_size: int = 3) -> np.ndarray:
+        """Apply median filter to remove spikes"""
+        try:
+            from scipy.ndimage import median_filter
+            # Use scipy if available
+            return median_filter(arr, size=window_size)
+        except ImportError:
+            # Fallback: simple median filter
+            filtered = arr.copy()
+            half_window = window_size // 2
+            
+            for i in range(half_window, len(arr) - half_window):
+                window = arr[i-half_window:i+half_window+1]
+                filtered[i] = np.median(window)
+            
+            return filtered
+
+    def remove_statistical_outliers(self, arr: np.ndarray, field_name: str) -> np.ndarray:
+        """Remove statistical outliers using IQR method"""
+        if len(arr) < 4:
+            return arr
+        
+        try:
+            Q1 = np.percentile(arr, 25)
+            Q3 = np.percentile(arr, 75)
+            IQR = Q3 - Q1
+            
+            if IQR == 0:
+                return arr
+            
+            # Adaptive outlier threshold based on data type
+            if any(keyword in field_name.lower() for keyword in ['speed', 'acceleration']):
+                # More lenient for motion data (can have natural spikes)
+                multiplier = 2.5
+            else:
+                # Standard threshold for timing data
+                multiplier = 1.5
+            
+            lower_bound = Q1 - multiplier * IQR
+            upper_bound = Q3 + multiplier * IQR
+            
+            mask = (arr >= lower_bound) & (arr <= upper_bound)
+            removed = len(arr) - np.sum(mask)
+            
+            if removed > 0:
+                logger.debug(f"Removed {removed} statistical outliers from {field_name}")
+            
+            return arr[mask]
+            
+        except Exception as e:
+            logger.error(f"Error removing statistical outliers: {str(e)}")
+            return arr
+
+    def should_apply_smoothing(self, field_name: str) -> bool:
+        """Determine if smoothing should be applied based on field type"""
+        # Apply smoothing to motion data but not timing data
+        motion_fields = ['speed', 'acceleration', 'direction']
+        return any(field in field_name.lower() for field in motion_fields)
+
+    def apply_smoothing(self, arr: np.ndarray, alpha: float = 0.3) -> np.ndarray:
+        """Apply exponential smoothing"""
+        if len(arr) < 2:
+            return arr
+        
+        smoothed = arr.copy()
+        for i in range(1, len(arr)):
+            smoothed[i] = alpha * arr[i] + (1 - alpha) * smoothed[i-1]
+        
+        return smoothed
+
+    def detect_sensor_drift(self, values: List[float], field_name: str) -> bool:
+        """Detect if there's sensor drift in the data"""
+        if len(values) < 10:
+            return False
+        
+        try:
+            arr = np.array(values)
+            
+            # Check for monotonic trend (possible drift)
+            trend_test = np.corrcoef(np.arange(len(arr)), arr)[0, 1]
+            
+            # Check for sudden level shifts
+            diff = np.diff(arr)
+            mean_diff = np.mean(np.abs(diff))
+            
+            # Strong trend indicates possible drift
+            if abs(trend_test) > 0.7 and mean_diff > np.std(arr) * 0.5:
+                logger.debug(f"Detected possible sensor drift in {field_name}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error detecting sensor drift: {str(e)}")
+            return False
+
+    def correct_sensor_drift(self, values: List[float], field_name: str) -> List[float]:
+        """Correct sensor drift by detrending"""
+        if len(values) < 3:
+            return values
+        
+        try:
+            arr = np.array(values)
+            x = np.arange(len(arr))
+            
+            # Fit linear trend
+            slope, intercept = np.polyfit(x, arr, 1)
+            
+            # Remove trend
+            detrended = arr - (slope * x + intercept) + np.mean(arr)
+            
+            logger.debug(f"Corrected drift in {field_name}: slope={slope:.4f}")
+            return detrended.tolist()
+            
+        except Exception as e:
+            logger.error(f"Error correcting sensor drift: {str(e)}")
+            return values
+
+    def calculate_data_quality_score(self, standardized_data: Dict[str, Any]) -> Dict[str, float]:
+        """Calculate quality scores for different data types"""
+        quality_scores = {}
+        
+        try:
+            # Swipe data quality
+            swipe_fields = ['speeds', 'directions', 'accelerations']
+            swipe_data = {k: v for k, v in standardized_data.items() if k in swipe_fields}
+            
+            if swipe_data:
+                quality_scores['swipe'] = self.calculate_swipe_quality(swipe_data)
+            
+            # Typing data quality
+            typing_fields = ['hold_times', 'flight_times', 'backspace_rates', 'typing_speeds']
+            typing_data = {k: v for k, v in standardized_data.items() if k in typing_fields}
+            
+            if typing_data:
+                quality_scores['typing'] = self.calculate_typing_quality_score(typing_data)
+            
+            return quality_scores
+            
+        except Exception as e:
+            logger.error(f"Error calculating quality scores: {str(e)}")
+            return {}
+
+    def calculate_swipe_quality(self, swipe_data: Dict[str, List]) -> float:
+        """Calculate quality score for swipe data"""
+        try:
+            quality_factors = []
+            
+            for field, values in swipe_data.items():
+                if not values:
+                    continue
+                
+                arr = np.array(values)
+                
+                # Sample count quality
+                sample_quality = min(1.0, len(arr) / 15)  # Target 15 samples
+                quality_factors.append(sample_quality)
+                
+                # Variance quality (not too low, not too high)
+                variance = np.var(arr)
+                if field == 'speeds':
+                    ideal_variance = 0.5
+                elif field == 'directions':
+                    ideal_variance = 1.0
+                else:  # accelerations
+                    ideal_variance = 50000
+                
+                variance_quality = 1.0 / (1.0 + abs(variance - ideal_variance) / ideal_variance)
+                quality_factors.append(variance_quality)
+                
+                # Continuity quality (no big gaps)
+                if len(arr) > 1:
+                    continuity = 1.0 / (1.0 + np.std(np.diff(arr)) / np.mean(arr))
+                    quality_factors.append(continuity)
+            
+            return float(np.mean(quality_factors)) if quality_factors else 0.5
+            
+        except Exception as e:
+            logger.error(f"Error calculating swipe quality: {str(e)}")
+            return 0.5
+
+    def calculate_typing_quality_score(self, typing_data: Dict[str, List]) -> float:
+        """Calculate quality score for typing data"""
+        try:
+            quality_factors = []
+            
+            for field, values in typing_data.items():
+                if not values:
+                    continue
+                
+                arr = np.array(values)
+                
+                # Sample count quality
+                sample_quality = min(1.0, len(arr) / 25)  # Target 25 samples
+                quality_factors.append(sample_quality)
+                
+                # Consistency quality (lower CV is better for typing)
+                if np.mean(arr) > 0:
+                    cv = np.std(arr) / np.mean(arr)
+                    consistency_quality = 1.0 / (1.0 + cv)
+                    quality_factors.append(consistency_quality)
+                
+                # Range quality (values in reasonable range)
+                if field == 'hold_times':
+                    range_quality = 1.0 if 50 <= np.mean(arr) <= 500 else 0.5
+                elif field == 'flight_times':
+                    range_quality = 1.0 if 100 <= np.mean(arr) <= 1000 else 0.5
+                elif field == 'typing_speeds':
+                    range_quality = 1.0 if 1 <= np.mean(arr) <= 10 else 0.5
+                else:
+                    range_quality = 1.0
+                
+                quality_factors.append(range_quality)
+            
+            return float(np.mean(quality_factors)) if quality_factors else 0.5
+            
+        except Exception as e:
+            logger.error(f"Error calculating typing quality: {str(e)}")
+            return 0.5
 
 
 # Test functions

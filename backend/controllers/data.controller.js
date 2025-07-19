@@ -154,7 +154,8 @@ export const sendData = async (req, res) => {
     await savedEntry.save();
 
     // Send to prediction server
-    const response = await axios.post('http://localhost:5000/train_model', data1);
+    console.log(savedEntry)
+    const response = await axios.post('http://localhost:5001/train_model', data1);
 
     res.status(200).json({
       message: 'Data saved and sent successfully to prediction server.',

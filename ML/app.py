@@ -167,6 +167,7 @@ def train_model():
         # Extract required fields
         user_id = data.get("user_id")
         raw_features = data.get("data")
+        print(raw_features)
 
         # Validate required fields
         if not user_id:
