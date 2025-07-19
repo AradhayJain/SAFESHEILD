@@ -29,8 +29,8 @@ class EnhancedTypingModelTrainer:
         # Relaxed parameters for onboarding (small datasets)
         self.min_samples_onboarding = 15  # Reduced from 50
         self.min_samples_full = 50
-        self.contamination_onboarding = 0.15  # More lenient
-        self.contamination_full = 0.1
+        self.contamination_onboarding = 0.03  # More lenient
+        self.contamination_full = 0.02
         self.n_estimators = 100
         self.random_state = 42
         
