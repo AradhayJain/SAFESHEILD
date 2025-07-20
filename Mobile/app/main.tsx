@@ -58,18 +58,32 @@ useFocusEffect(
   useCallback(() => {
     const handlePrediction = (msg: string) => {
       console.log('📨 Received prediction:', msg);
-              // Parse JSON string
-        let data;
-        try {
-          data = JSON.parse(msg);
-        } catch (e) {
-          console.error('❌ Failed to parse prediction message:', e);
-          return;
-        }
+      console.log(typeof msg)
 
-        // Extract swipeRisk
-        const swipeRisk = data?.swiping?.prediction_result?.risk_category;
-        console.log('🧪 swipeRisk:', swipeRisk);
+      // let data;
+      // try {
+      //   data = JSON.parse(msg);
+      //   console.log(data)
+      // } catch (e) {
+      //   console.error('❌ Failed to parse prediction message:', e.message);
+      //   return;
+      // }
+      
+      const swipeRisk = msg?.swiping?.prediction_result?.risk_category;
+      const typingRisk = msg?.typing?.prediction_result?.risk_category;
+      
+      if (swipeRisk) {
+        console.log('🧪 Swiping Risk:', swipeRisk);
+      } else {
+        console.warn('⚠️ No swiping risk category found.');
+      }
+      
+      if (typingRisk) {
+        console.log('⌨️ Typing Risk:', typingRisk);
+      } else {
+        console.warn('⚠️ No typing risk category found.');
+      }
+      
 
         if (!swipeRisk) return;
 
@@ -101,7 +115,7 @@ useFocusEffect(
             `⚠️ Risks so far → Low: ${lowCount}, Medium: ${mediumCount}, High: ${highCount}`
           );
 
-          if (lowCount >= 10 || mediumCount >= 5 || highCount >= 2) {
+          if (lowCount >= 30 || mediumCount >= 20 || highCount >= 10) {
             Alert.alert(
               'Security Alert',
               'Too many risky sessions detected. Logging out.....',

@@ -68,15 +68,9 @@ export default function CardsScreen() {
     socket.on('prediction-result', (msg: string) => {
       console.log('Received message:', msg);
       let data;
-      try {
-        data = JSON.parse(msg);
-      } catch (e) {
-        console.error('❌ Failed to parse prediction message:', e);
-        return;
-      }
-
+      
       // Extract swipeRisk
-      const swipeRisk = data?.swiping?.prediction_result?.risk_category;
+      const swipeRisk = msg?.swiping?.prediction_result?.risk_category;
       console.log('🧪 swipeRisk:', swipeRisk);
 
       if (!swipeRisk) return;

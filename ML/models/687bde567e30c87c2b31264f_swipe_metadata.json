@@ -1,0 +1,30 @@
+{
+  "user_id": "687bde567e30c87c2b31264f",
+  "training_date": "2025-07-19T23:36:17.962118",
+  "is_onboarding": false,
+  "total_samples": 16,
+  "clean_samples": 10,
+  "training_samples": 10,
+  "outlier_rate": 0.1,
+  "contamination": 0.02,
+  "cv_score_mean": -0.5147,
+  "cv_score_std": 0.0596,
+  "feature_columns": [
+    "speed_mean",
+    "speed_std",
+    "direction_mean",
+    "direction_std",
+    "acceleration_mean",
+    "acceleration_std"
+  ],
+  "model_parameters": {
+    "n_estimators": 100,
+    "random_state": 42,
+    "bootstrap": true
+  },
+  "data_quality": {
+    "missing_values_handled": true,
+    "outliers_processed": true,
+    "population_baseline_added": false
+  }
+}

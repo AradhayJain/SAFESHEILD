@@ -53,6 +53,8 @@ io.on("connection", (socket) => {
       data.data,
       userId,
       (result) => {
+        let swipingData;
+        
         socket.emit("prediction-result", result);
       },
       (err) => {
