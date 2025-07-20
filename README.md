@@ -113,7 +113,5 @@ SafeShield enhances digital security through **Behavior-Based Authentication (BB
 
 SafeShield introduces a **transparent, real-time defense mechanism** for mobile applications by continuously analyzing behavioral traits. It enhances trust and security for digital services — **without burdening the user**.
 
----
 
-## 📁 Folder Structure (Suggested)
 
