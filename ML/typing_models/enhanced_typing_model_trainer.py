@@ -211,7 +211,7 @@ class EnhancedTypingModelTrainer:
                 silhouette_avg = -1  # Fallback if silhouette calculation fails
             
             # More lenient validation for onboarding
-            valid_outlier_range = (0.05, 0.4) if is_onboarding else (0.05, 0.2)
+            valid_outlier_range = (0.01, 0.4) if is_onboarding else (0.01, 0.8)
             
             if valid_outlier_range[0] <= outlier_rate <= valid_outlier_range[1]:
                 # Save model and scaler

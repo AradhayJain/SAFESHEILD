@@ -44,7 +44,7 @@ export default function RegisterScreen() {
     }
     console.log(password)
     try {
-      const response = await axios.post('http://192.168.1.3:9001/api/users/register', {
+      const response = await axios.post('http://192.168.1.17:9001/api/users/register', {
         username,
         AccountNumber,
         PhoneNumber,
