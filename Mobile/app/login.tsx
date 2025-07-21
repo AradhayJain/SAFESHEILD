@@ -23,7 +23,7 @@ export default function LoginScreen() {
 
   setLoading(true);
   try {
-    const response = await axios.post('http://192.168.1.17:9001/api/users/login', {
+    const response = await axios.post('http://192.168.1.6:9001/api/users/login', {
       AccountNumber: accountNumber,
       password,
     });

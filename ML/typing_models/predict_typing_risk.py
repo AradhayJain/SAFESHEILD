@@ -18,13 +18,13 @@ class TypingRiskPredictor:
     def get_risk_category(self, score: float) -> str:
         """Enhanced risk categorization - MORE LENIENT thresholds"""
         # UPDATED: More lenient thresholds to reduce false positives
-        if score < -1.5:    
+        if score < -0.6:    
             return 'critical_risk'
-        elif score < -1.2:  
+        elif score < -0.52:  
             return 'high_risk'
-        elif score < -0.8:
+        elif score < -0.4:
             return 'medium_risk'
-        elif score < -0.5:  
+        elif score < -0.3:  
             return 'low_risk'
         return 'normal'
     

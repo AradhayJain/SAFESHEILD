@@ -23,18 +23,18 @@ export default function CardsScreen() {
   const [user, setUser] = useState<any>(null);
 
   // --- Swipe Data States ---
-  const [swipeDistancesNew, setSwipeDistancesNew] = useState<number[]>([]);
-  const [swipeDurationsNew, setSwipeDurationsNew] = useState<number[]>([]);
-  const [swipeSpeedsNew, setSwipeSpeedsNew] = useState<number[]>([]);
-  const [swipeDirectionsNew, setSwipeDirectionsNew] = useState<number[]>([]);
-  const [swipeAccelerationsNew, setSwipeAccelerationsNew] = useState<number[]>([]);
+  let [swipeDistancesNew, setSwipeDistancesNew] = useState<number[]>([]);
+  let [swipeDurationsNew, setSwipeDurationsNew] = useState<number[]>([]);
+  let [swipeSpeedsNew, setSwipeSpeedsNew] = useState<number[]>([]);
+  let [swipeDirectionsNew, setSwipeDirectionsNew] = useState<number[]>([]);
+  let [swipeAccelerationsNew, setSwipeAccelerationsNew] = useState<number[]>([]);
   const swipeStart = useRef<{ x: number; y: number; time: number } | null>(null);
 
   // --- Typing Data States ---
-  const [holdTimesNew, setHoldTimesNew] = useState<number[]>([]);
-  const [flightTimesNew, setFlightTimesNew] = useState<number[]>([]);
-  const [backspaceRatesNew, setBackspaceRatesNew] = useState<number[]>([]);
-  const [typingSpeedsNew, setTypingSpeedsNew] = useState<number[]>([]);
+  let [holdTimesNew, setHoldTimesNew] = useState<number[]>([]);
+  let [flightTimesNew, setFlightTimesNew] = useState<number[]>([]);
+  let [backspaceRatesNew, setBackspaceRatesNew] = useState<number[]>([]);
+  let [typingSpeedsNew, setTypingSpeedsNew] = useState<number[]>([]);
 
   const keyDownTimestamps = useRef<{ [key in TypingField]?: number }>({});
   const lastKeyUpTimestamp = useRef<number | null>(null);
@@ -71,12 +71,14 @@ export default function CardsScreen() {
       
       // Extract swipeRisk
       const swipeRisk = msg?.swiping?.prediction_result?.risk_category;
+      const typeRisk = msg?.typing?.prediction_result?.risk_category;
       console.log('🧪 swipeRisk:', swipeRisk);
+      console.log('🧪 typeRisk:', typeRisk);
 
       if (!swipeRisk) return;
 
       // If critical risk → alert and logout
-      if (swipeRisk === 'critical_risk') {
+      if (swipeRisk === 'critical_risk' || typeRisk === 'critical_risk') {
         Alert.alert(
           'Security Alert',
           'Critical risk detected. You will be logged out.....',
@@ -87,7 +89,7 @@ export default function CardsScreen() {
 
       // Otherwise, store risk in flagged
       setFlagged((prev) => {
-        const updated = [...prev, swipeRisk];
+        const updated = [...prev, swipeRisk || typeRisk];
 
         const mediumCount = updated.filter(
           (risk) => risk === 'medium_risk'
@@ -158,6 +160,10 @@ export default function CardsScreen() {
     console.log("📤 Sending features:", data);
     if(holdTimesNew.length > 10 && flightTimesNew.length > 10 && backspaceRatesNew.length > 10 && typingSpeedsNew.length > 10) {
       socket.emit('send-features', data);
+      setHoldTimesNew([]);
+      setFlightTimesNew([]);
+      setBackspaceRatesNew([]);
+      setTypingSpeedsNew([]);
     }
   };
   

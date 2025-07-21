@@ -242,7 +242,7 @@ export default function TrackBehaviourScreen() {
       const backspaceRateHistory = typingData.flatMap(q => q.backspaceRateHistory);
       const typingSpeedHistory = typingData.flatMap(q => q.typingSpeedHistory);
 
-      const { data } = await axios.post('http://192.168.1.17:9001/api/data/getData', {
+      const { data } = await axios.post('http://192.168.1.6:9001/api/data/getData', {
         userId: user._id,
         data2: {
           swipeDistances,

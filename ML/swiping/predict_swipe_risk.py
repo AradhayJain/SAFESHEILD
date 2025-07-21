@@ -21,13 +21,13 @@ class SwipeRiskPredictor:
     def get_risk_category(self, score: float) -> str:
         """Enhanced risk categorization - MORE LENIENT thresholds"""
         # UPDATED: More lenient thresholds to reduce false positives
-        if score < -1.5:    # Was -0.6, now much stricter for critical
+        if score < -0.8:    # Was -0.6, now much stricter for critical
             return 'critical_risk'
-        elif score < -1.2:  # Was -0.4, now stricter for high risk
+        elif score < -0.67:  # Was -0.4, now stricter for high risk
             return 'high_risk'
-        elif score < -0.9:  # Was -0.2, now stricter for medium risk
+        elif score < -0.59:  # Was -0.2, now stricter for medium risk
             return 'medium_risk'
-        elif score < -0.5:  # Was -0.1, now stricter for low risk
+        elif score < -0.6:  # Was -0.1, now stricter for low risk
             return 'low_risk'
         return 'normal'
     
